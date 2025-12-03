@@ -1,0 +1,15 @@
+*.log
+*.jou
+*.str
+*.cache/
+*.runs/
+*.sim/
+*.ip_user_files/
+*.tmp
+*.vcd
+
+*.wdb
+*.saif
+
+.DS_Store
+Thumbs.db
