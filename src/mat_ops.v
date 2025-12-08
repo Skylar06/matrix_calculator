@@ -123,11 +123,6 @@ module mat_ops (
                                 state <= LOAD_DATA;
                             end
                             
-                            OP_CONV: begin
-                                // 卷积(这里简化,实际需要更复杂的处理)
-                                state <= LOAD_DATA;
-                            end
-                            
                             default: begin
                                 state <= ERROR;
                                 error_flag <= 1'b1;
@@ -197,11 +192,6 @@ module mat_ops (
                             end else begin
                                 state <= WRITE_RESULT;
                             end
-                        end
-                        
-                        OP_CONV: begin
-                            // 卷积运算(简化实现)
-                            state <= WRITE_RESULT;
                         end
                         
                         default: state <= ERROR;
