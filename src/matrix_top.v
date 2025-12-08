@@ -11,13 +11,14 @@ module matrix_top (
     output [7:0] seg_data
 );
 
-    // ctrl_fsm <-> else
+    // ========== ctrl_fsm <-> 其他模块 ==========
     wire [1:0] mode_sel;
     wire [2:0] op_sel;
     wire [7:0] countdown_val;
-    wire start_input, start_gen, start_disp, start_op, tx_start, error_flag_ctr, busy_flag_ctr, done_flag_ctrl;
+    wire start_input, start_gen, start_disp, start_op, tx_start;
+    wire error_flag_ctrl, busy_flag_ctrl, done_flag_ctrl;
 
-    // UART RX / parser
+    // ========== UART RX / parser ==========
     wire [7:0] rx_data;
     wire [3:0] cmd_type;
     wire [2:0] dim_m;
@@ -26,9 +27,9 @@ module matrix_top (
     wire [7:0] elem_min;
     wire [7:0] elem_max;
     wire [3:0] matrix_id_in;
-    wire rx_valid, cfg_val, write_, read_en;
+    wire rx_valid, cfg_valid, write_en, read_en;  // 修复: cfg_val -> cfg_valid, write_ -> write_en
 
-    // storage / rand / ops
+    // ========== storage / rand / ops ==========
     wire [7:0] ms_data_in;
     wire [7:0] ms_data_out;
     wire [3:0] matrix_id_out;
@@ -36,17 +37,20 @@ module matrix_top (
     wire [7:0] matrix_a;
     wire [7:0] matrix_b;
     wire [7:0] result_data;
-    wire meta_info_valid, error_flag_storag, gen_done, op_do, busy_flag_op, error_flag_ops;
+    wire meta_info_valid, error_flag_storage, gen_done, op_done, busy_flag_ops, error_flag_ops;
 
-    // LED
+    // ========== LED错误标志汇总 ==========
     assign error_flag_ctrl = error_flag_ops | error_flag_storage;
     assign busy_flag_ctrl  = busy_flag_ops;
     assign done_flag_ctrl  = op_done;
 
-    // TODO: k / storage
-    wire [7:0] scalar_k = sw;
+    // ========== 标量K和数据输入选择 ==========
+    wire [7:0] scalar_k = sw;  // 从拨码开关读取标量
     assign ms_data_in = (start_gen) ? rand_data_out : elem_data;
 
+    // ========== 实例化所有子模块 ==========
+
+    // 1. 控制FSM
     ctrl_fsm u_ctrl_fsm (
         .clk(clk),
         .rst_n(rst_n),
@@ -66,15 +70,17 @@ module matrix_top (
         .tx_start(tx_start)
     );
 
+    // 2. UART接收
     uart_rx u_uart_rx (
         .clk(clk),
         .rst_n(rst_n),
-        .uart_rx(uart_rx),
+        .rx(uart_rx),
 
         .rx_data(rx_data),
         .rx_valid(rx_valid)
     );
 
+    // 3. UART命令解析器
     uart_cmd_parser u_uart_cmd_parser (
         .clk(clk),
         .rst_n(rst_n),
@@ -93,6 +99,7 @@ module matrix_top (
         .read_en(read_en)
     );
 
+    // 4. 随机矩阵生成器
     rand_matrix_gen u_rand_matrix_gen (
         .clk(clk),
         .rst_n(rst_n),
@@ -106,6 +113,7 @@ module matrix_top (
         .data_out(rand_data_out)
     );
 
+    // 5. 矩阵存储
     matrix_storage u_matrix_storage (
         .clk(clk),
         .rst_n(rst_n),
@@ -115,11 +123,11 @@ module matrix_top (
         .dim_n(dim_n),
         .data_in(ms_data_in),
         .matrix_id_in(matrix_id_in),
-
         .result_data(result_data),
         .op_done(op_done),
         .start_input(start_input),
         .start_disp(start_disp),
+
         .data_out(ms_data_out),
         .matrix_id_out(matrix_id_out),
         .meta_info_valid(meta_info_valid),
@@ -128,6 +136,7 @@ module matrix_top (
         .matrix_b(matrix_b)
     );
 
+    // 6. 矩阵运算模块
     mat_ops u_mat_ops (
         .clk(clk),
         .rst_n(rst_n),
@@ -137,12 +146,13 @@ module matrix_top (
         .matrix_b(matrix_b),
         .scalar_k(scalar_k),
 
-        .op_done    (op_done),
+        .op_done(op_done),
         .result_data(result_data),
-        .busy_flag  (busy_flag_ops),
-        .error_flag (error_flag_ops)
+        .busy_flag(busy_flag_ops),
+        .error_flag(error_flag_ops)
     );
 
+    // 7. 七段数码管显示
     seg_display u_seg_display (
         .clk(clk),
         .rst_n(rst_n),
@@ -155,6 +165,7 @@ module matrix_top (
         .seg_data(seg_data)
     );
 
+    // 8. LED状态指示
     led_status u_led_status (
         .clk(clk),
         .rst_n(rst_n),
@@ -165,6 +176,8 @@ module matrix_top (
         .led(led)
     );
 
+    // 9. UART发送
+    // 根据情况选择发送运算结果或存储的矩阵数据
     wire [7:0] tx_data;
     assign tx_data = (op_done) ? result_data : ms_data_out;
 
@@ -176,6 +189,5 @@ module matrix_top (
 
         .uart_tx(uart_tx)
     );
-
 
 endmodule
