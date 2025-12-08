@@ -2,7 +2,7 @@ module matrix_top (
     input clk,
     input rst_n,
     input [7:0] sw,
-    input [3:0] key,
+    input [4:0] key,
     input uart_rx,
 
     output uart_tx,
@@ -54,7 +54,7 @@ module matrix_top (
     ctrl_fsm u_ctrl_fsm (
         .clk(clk),
         .rst_n(rst_n),
-        .sw(sw[3:0]),
+        .sw(sw[4:0]),
         .key(key[3:0]),
         .error_flag(error_flag_ctrl),
         .busy_flag(busy_flag_ctrl),
