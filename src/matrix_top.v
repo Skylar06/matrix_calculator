@@ -11,7 +11,6 @@ module matrix_top (
     output [7:0] seg_data
 );
 
-    // ========== ctrl_fsm信号 ==========
     wire [1:0] mode_sel;
     wire [2:0] op_sel;
     wire [7:0] countdown_val;
@@ -21,19 +20,17 @@ module matrix_top (
     wire [3:0] operand_a_id, operand_b_id;
     wire [1:0] display_mode;
     
-    // ========== 错误/忙碌/完成标志 ==========
     wire error_flag_ctrl, busy_flag_ctrl, done_flag_ctrl;
     wire select_done, select_error, format_done;
 
-    // ========== UART RX / parser ==========
     wire [7:0] rx_data;
     wire [2:0] dim_m, dim_n;
     wire [7:0] elem_data, elem_min, elem_max;
     wire [3:0] count, matrix_id_in;
     wire [3:0] user_id_a, user_id_b;
-    wire rx_valid, data_ready, write_en, read_en, user_input_valid;
+    wire rx_valid, data_ready, user_input_valid;
+    wire write_en_parser, read_en;
 
-    // ========== storage信号 ==========
     wire [7:0] ms_data_in, ms_data_out;
     wire [3:0] matrix_id_out;
     wire [7:0] matrix_a [0:24];
@@ -46,38 +43,47 @@ module matrix_top (
     wire meta_info_valid, error_flag_storage, gen_done, op_done, busy_flag_ops, error_flag_ops;
     wire load_operands, req_list_info;
 
-    // ========== operand_selector信号 ==========
     wire [3:0] selected_a, selected_b;
     
-    // ========== display_formatter信号 ==========
     wire [7:0] tx_data_fmt;
     wire tx_valid_fmt;
     wire [7:0] matrix_data_to_fmt;
     wire matrix_data_valid_fmt;
     
-    // ========== 随机生成器信号 ==========
     wire [7:0] rand_data_out;
-    wire rand_write_en;
+    wire rand_write_en_internal;
     
-    // ========== 标量K ==========
-    wire [7:0] scalar_k = sw;
+    wire [7:0] scalar_k;
+    assign scalar_k = sw;
     
-    // ========== 数据输入选择 ==========
+    wire tx_busy;
+    
+    wire write_en;
     assign ms_data_in = (start_gen) ? rand_data_out : elem_data;
-    assign write_en = (start_gen) ? rand_write_en : (start_input && data_ready);
+    assign write_en = (start_gen) ? rand_write_en_internal : (start_input && write_en_parser);
     
-    // ========== 错误标志汇总 ==========
     assign error_flag_ctrl = error_flag_ops | error_flag_storage | select_error;
     assign busy_flag_ctrl  = busy_flag_ops;
     assign done_flag_ctrl  = op_done | gen_done;
     
-    // ========== 运算数加载信号 ==========
-    assign load_operands = (state_op_run && prev_state != state_op_run);  // 简化处理
+    reg load_operands_reg;
+    reg start_op_prev;
     
-    // ========== 列表查询信号 ==========
-    assign req_list_info = (display_mode == 2'd1);
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            load_operands_reg <= 1'b0;
+            start_op_prev <= 1'b0;
+        end else begin
+            start_op_prev <= start_op;
+            load_operands_reg <= start_op && !start_op_prev;
+        end
+    end
     
-    // ========== 实例化模块 ==========
+    assign load_operands = load_operands_reg;
+    assign req_list_info = (display_mode == 2'd1) && start_format;
+    
+    assign matrix_data_to_fmt = ms_data_out;
+    assign matrix_data_valid_fmt = meta_info_valid;
 
     ctrl_fsm u_ctrl_fsm (
         .clk(clk),
@@ -134,7 +140,7 @@ module matrix_top (
         .elem_max(elem_max),
         .count(count),
         .matrix_id(matrix_id_in),
-        .write_en(write_en),
+        .write_en(write_en_parser),
         .data_ready(data_ready),
         .user_id_a(user_id_a),
         .user_id_b(user_id_b),
@@ -152,7 +158,7 @@ module matrix_top (
         .elem_max(elem_max),
         .gen_done(gen_done),
         .data_out(rand_data_out),
-        .write_en(rand_write_en)
+        .write_en(rand_write_en_internal)
     );
 
     matrix_storage u_matrix_storage (
@@ -232,7 +238,7 @@ module matrix_top (
         .rst_n(rst_n),
         .start_op(start_op),
         .op_sel(op_sel),
-        .matrix_a(matrix_a[0]),  // 简化：直接传首元素
+        .matrix_a(matrix_a[0]),
         .matrix_b(matrix_b[0]),
         .scalar_k(scalar_k),
         
@@ -269,7 +275,7 @@ module matrix_top (
         .rst_n(rst_n),
         .tx_start(tx_valid_fmt),
         .tx_data(tx_data_fmt),
-        .uart_tx(uart_tx),
+        .tx(uart_tx),
         .tx_busy(tx_busy)
     );
 
