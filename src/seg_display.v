@@ -25,14 +25,6 @@ module seg_display (
     // 用于字母显示的特殊标记
     reg show_op_type;                   // 是否显示运算类型
     
-    // ========== 段码查找表 (共阴极,高电平点亮) ==========
-    // 段码格式: {DP, G, F, E, D, C, B, A}
-    //            小数点                a
-    //                            f   b
-    //                              g
-    //                            e   c
-    //                              d   dp
-    
     function [7:0] hex_to_seg;
         input [3:0] hex;
         begin

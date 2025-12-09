@@ -81,11 +81,11 @@ module uart_cmd_parser (
             WAIT_DATA: begin
                 // 根据模式判断是否完成
                 case (mode_sel)
-                    2'b00: begin  // INPUT模式: 接收 m*n 个元素
+                    2'b01: begin  // INPUT模式: 接收 m*n 个元素
                         if (data_cnt >= data_total)
                             next_state = DONE;
                     end
-                    2'b01: begin  // GEN模式: 接收1个数(个数)
+                    2'b10: begin  // GEN模式: 接收1个数(个数)
                         if (data_cnt >= 1)
                             next_state = DONE;
                     end
@@ -133,7 +133,7 @@ module uart_cmd_parser (
                 WAIT_M: begin
                     if (rx_valid) begin
                         if (rx_data >= ASCII_0 && rx_data <= ASCII_9) begin
-                            // 构建多位数: 如果输入是 "25" → 2*10 + 5 = 25
+                            // 构建多位数
                             if (num_building) begin
                                 num_buffer <= num_buffer * 10 + (rx_data - ASCII_0);
                             end else begin
@@ -183,12 +183,16 @@ module uart_cmd_parser (
                         else if (rx_data == ASCII_SPACE || rx_data == ASCII_CR || rx_data == ASCII_LF) begin
                             // 数字结束,根据模式处理
                             case (mode_sel)
-                                2'b00: begin  // INPUT模式: 存储矩阵元素
-                                    elem_data <= num_buffer;
-                                    write_en <= 1'b1;  // 产生写使能脉冲
-                                    data_cnt <= data_cnt + 1;
+                                2'b01: begin  // INPUT模式: 存储矩阵元素
+                                    // 只在未超过总数时输出
+                                    if (data_cnt < data_total) begin
+                                        elem_data <= num_buffer;
+                                        write_en <= 1'b1;  // 产生写使能脉冲
+                                        data_cnt <= data_cnt + 1;
+                                    end
+                                    // 超过总数的元素自动忽略
                                 end
-                                2'b01: begin  // GEN模式: 存储个数
+                                2'b10: begin  // GEN模式: 存储个数
                                     count <= num_buffer[3:0];
                                     data_cnt <= data_cnt + 1;
                                 end
@@ -215,18 +219,24 @@ endmodule
 // ============================================================================
 // 使用说明:
 //
-// INPUT模式 (mode_sel = 2'b00):
+// INPUT模式 (mode_sel = 2'b01):
 //   用户输入: "2 3 1 2 3 4 5 6" 或 "2 3 1 2 3 4 5 6\n"
 //   解析结果: dim_m=2, dim_n=3, 依次输出elem_data=1,2,3,4,5,6
 //   每个元素产生一个write_en脉冲
 //
-// GEN模式 (mode_sel = 2'b01):
+//   注意: 所有合法性检测由matrix_storage负责!
+//   - 维度检测 (1-5): storage检查
+//   - 数值检测 (0-9): storage检查
+//   - 元素不足: storage自动填0
+//   - 元素超出: parser只输出前N个
+//
+// GEN模式 (mode_sel = 2'b10):
 //   用户输入: "3 3 2" 或 "3 3 2\n"
 //   解析结果: dim_m=3, dim_n=3, count=2
 //   data_ready=1标记完成
 //
 // 支持多位数:
-//   输入 "12 25" → dim_m=12, dim_n=25 (超过5会被截断为5)
+//   输入 "12 25" → dim_m=12, dim_n=25 (storage会检测并报错)
 //
 // 分隔符:
 //   支持空格、回车(\r)、换行(\n)作为分隔符
