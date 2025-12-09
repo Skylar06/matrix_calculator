@@ -98,7 +98,8 @@ module ctrl_fsm (
                     next_state = S_ERROR;
                 else if (key_back)
                     next_state = S_MENU;
-                // 保持在INPUT状态,等待UART输入
+                else if (key_ok)
+                    next_state = S_INPUT;       // 继续输入新矩阵
             end
 
             // ===== 生成模式 =====
