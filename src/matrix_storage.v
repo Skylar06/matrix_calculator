@@ -52,9 +52,11 @@ module matrix_storage (
     reg [4:0] read_elem_total;               // 读取的总元素数
     reg reading;                              // 正在读取标志
     
-    // ========== 用于运算的矩阵索引 ==========
-    reg [4:0] mat_a_idx;
-    reg [4:0] mat_b_idx;
+    // ========== 运算结果相关 ==========
+    reg [3:0] result_matrix_id;          // 结果矩阵ID
+    reg [4:0] result_elem_idx;           // 结果元素索引
+    reg [2:0] result_m, result_n;        // 结果矩阵维度
+    reg storing_result;                   // 正在存储结果
     
     integer i;
     
@@ -84,8 +86,13 @@ module matrix_storage (
             error_flag <= 1'b0;
             matrix_a <= 8'd0;
             matrix_b <= 8'd0;
-            mat_a_idx <= 5'd0;
-            mat_b_idx <= 5'd0;
+            
+            // 初始化运算结果相关
+            result_matrix_id <= 4'd0;
+            result_elem_idx <= 5'd0;
+            result_m <= 3'd0;
+            result_n <= 3'd0;
+            storing_result <= 1'b0;
             
             // 初始化数值范围
             value_min <= 8'd0;
@@ -114,25 +121,50 @@ module matrix_storage (
                 // ===== 检测2: 数值范围 (0-9或配置范围) =====
                 if (data_in < value_min || data_in > value_max) begin
                     error_flag <= 1'b1;  // 数值超出范围!
-                    // 策略: 报错但继续接收(不写入无效数据)
+                    writing <= 1'b0;     // 终止写入,需要重新输入
+                    // 不写入无效数据,直接退出写入状态
                 end else begin
                     // ===== 检测3a: 元素个数控制 - 只取前N个 =====
                     if (write_elem_idx < write_elem_total) begin
                         // 在范围内,正常写入
                         ram[write_matrix_id * MAX_ELEMENTS + write_elem_idx] <= data_in;
                         write_elem_idx <= write_elem_idx + 1;
+                        
+                        // 检查是否写入完成
+                        if (write_elem_idx >= write_elem_total - 1) begin
+                            // 更新元数据
+                            meta_m[write_matrix_id] <= dim_m;
+                            meta_n[write_matrix_id] <= dim_n;
+                            meta_valid[write_matrix_id] <= 1'b1;
+                            
+                            // 更新总数(如果是新矩阵)
+                            if (!meta_valid[write_matrix_id])
+                                total_matrices <= total_matrices + 1;
+                            
+                            writing <= 1'b0;
+                        end
                     end
                     // 如果 write_elem_idx >= write_elem_total,
                     // 元素超出,自动忽略(不写入,不报错)
+                end
+            end
+            
+            // ===== 检测3b: 元素不足自动填0 =====
+            // 当writing=1但长时间没有write_en时,说明用户停止输入
+            // 直接填充剩余位置为0
+            if (writing && !write_en) begin
+                // 如果还有未填充的位置,自动填0
+                if (write_elem_idx < write_elem_total) begin
+                    ram[write_matrix_id * MAX_ELEMENTS + write_elem_idx] <= 8'd0;
+                    write_elem_idx <= write_elem_idx + 1;
                     
-                    // 检查是否写入完成
+                    // 检查是否填充完成
                     if (write_elem_idx >= write_elem_total - 1) begin
                         // 更新元数据
                         meta_m[write_matrix_id] <= dim_m;
                         meta_n[write_matrix_id] <= dim_n;
                         meta_valid[write_matrix_id] <= 1'b1;
                         
-                        // 更新总数(如果是新矩阵)
                         if (!meta_valid[write_matrix_id])
                             total_matrices <= total_matrices + 1;
                         
@@ -141,21 +173,32 @@ module matrix_storage (
                 end
             end
             
-            // ===== 检测3b: 元素不足自动填0 =====
-            // 如果用户停止输入但元素不足,在下一个周期自动填0
-            if (writing && !write_en && write_elem_idx < write_elem_total) begin
-                // 这里可以添加一个超时计数器
-                // 如果超时(比如100个周期没有新数据),自动填0并结束
-                // 简化实现: 依赖uart_cmd_parser的data_ready信号
+            // ========== 存储运算结果 ==========
+            // 运算模块应该提供结果维度信息(result_m, result_n)
+            // 这里假设从mat_ops接收到维度信息
+            if (op_done && !storing_result) begin
+                // 开始存储运算结果
+                result_matrix_id <= find_or_create_slot(result_m, result_n);
+                result_elem_idx <= 5'd0;
+                storing_result <= 1'b1;
             end
             
-            // ========== 存储运算结果 ==========
-            if (op_done) begin
-                // 将运算结果存储为新矩阵
-                // 这里简化处理,实际应该根据运算类型确定结果矩阵维度
-                if (write_elem_idx < write_elem_total) begin
-                    ram[write_matrix_id * MAX_ELEMENTS + write_elem_idx] <= result_data;
-                    write_elem_idx <= write_elem_idx + 1;
+            if (storing_result) begin
+                // 逐个存储结果元素
+                ram[result_matrix_id * MAX_ELEMENTS + result_elem_idx] <= result_data;
+                result_elem_idx <= result_elem_idx + 1;
+                
+                // 检查是否存储完成
+                if (result_elem_idx >= result_m * result_n - 1) begin
+                    // 更新元数据
+                    meta_m[result_matrix_id] <= result_m;
+                    meta_n[result_matrix_id] <= result_n;
+                    meta_valid[result_matrix_id] <= 1'b1;
+                    
+                    if (!meta_valid[result_matrix_id])
+                        total_matrices <= total_matrices + 1;
+                    
+                    storing_result <= 1'b0;
                 end
             end
             
@@ -190,16 +233,10 @@ module matrix_storage (
             end
             
             // ========== 为运算模块提供矩阵数据 ==========
-            // 简化实现:假设矩阵A是ID=0,矩阵B是ID=1
-            if (meta_valid[0]) begin
-                matrix_a <= ram[0 * MAX_ELEMENTS + mat_a_idx];
-                mat_a_idx <= (mat_a_idx < meta_m[0] * meta_n[0] - 1) ? mat_a_idx + 1 : 5'd0;
-            end
-            
-            if (meta_valid[1]) begin
-                matrix_b <= ram[1 * MAX_ELEMENTS + mat_b_idx];
-                mat_b_idx <= (mat_b_idx < meta_m[1] * meta_n[1] - 1) ? mat_b_idx + 1 : 5'd0;
-            end
+            // 根据matrix_id_in读取指定的矩阵数据
+            // 这里需要mat_ops提供需要读取的矩阵ID
+            // 当前设计: matrix_a和matrix_b由mat_ops通过read接口获取
+            // (实际使用时需要完善握手机制)
         end
     end
     
