@@ -1,10 +1,8 @@
 /******************************************************************************
  * 模块名称: uart_cmd_parser
  * 功能描述: UART命令解析器
- *          - 解析矩阵输入命令
- *          - 解析生成命令
- *          - 解析运算数选择命令
- *          - 【新增】解析CONFIG配置命令
+ *          - 解析矩阵输入/生成/运算数选择命令
+ *          - 【新增】解析CONFIG SCALAR命令
  ******************************************************************************/
 module uart_cmd_parser (
     input wire clk,
@@ -32,11 +30,11 @@ module uart_cmd_parser (
     output reg [3:0] user_id_b,
     output reg user_input_valid,
     
-    // ========== 【新增】CONFIG命令输出 ==========
-    output reg config_valid,                // 配置命令有效标志
-    output reg [2:0] config_type,           // 配置类型
-    output reg signed [7:0] config_value1,  // 配置值1
-    output reg signed [7:0] config_value2   // 配置值2
+    // ========== CONFIG命令输出 ==========
+    output reg config_valid,
+    output reg [2:0] config_type,
+    output reg signed [7:0] config_value1,
+    output reg signed [7:0] config_value2
 );
 
     // ==========================================================================
@@ -49,9 +47,9 @@ module uart_cmd_parser (
     localparam WAIT_ID_A    = 4'd4;
     localparam WAIT_ID_B    = 4'd5;
     localparam DONE         = 4'd6;
-    localparam CONFIG_CMD   = 4'd7;   // 【新增】CONFIG命令状态
-    localparam CONFIG_VAL1  = 4'd8;   // 【新增】等待配置值1
-    localparam CONFIG_VAL2  = 4'd9;   // 【新增】等待配置值2
+    localparam CONFIG_CMD   = 4'd7;
+    localparam CONFIG_VAL1  = 4'd8;
+    localparam CONFIG_VAL2  = 4'd9;
 
     reg [3:0] state, next_state;
     
@@ -59,7 +57,7 @@ module uart_cmd_parser (
     reg [4:0] data_total;
     reg [7:0] num_buffer;
     reg num_building;
-    reg is_negative;              // 【新增】负数标志
+    reg is_negative;
     
     // ==========================================================================
     // ASCII码定义
@@ -71,24 +69,29 @@ module uart_cmd_parser (
     localparam ASCII_CR = 8'd13;
     localparam ASCII_LF = 8'd10;
     
-    // 【新增】CONFIG命令关键字符
-    localparam ASCII_C = 8'd67;       // 'C'
-    localparam ASCII_O = 8'd79;       // 'O'
-    localparam ASCII_N = 8'd78;       // 'N'
-    localparam ASCII_F = 8'd70;       // 'F'
-    localparam ASCII_I = 8'd73;       // 'I'
-    localparam ASCII_G = 8'd71;       // 'G'
-    localparam ASCII_M = 8'd77;       // 'M'
-    localparam ASCII_A = 8'd65;       // 'A'
-    localparam ASCII_X = 8'd88;       // 'X'
-    localparam ASCII_R = 8'd82;       // 'R'
-    localparam ASCII_E = 8'd69;       // 'E'
-    localparam ASCII_T = 8'd84;       // 'T'
-    localparam ASCII_U = 8'd85;       // 'U'
+    // CONFIG命令关键字符
+    localparam ASCII_C = 8'd67;
+    localparam ASCII_O = 8'd79;
+    localparam ASCII_N = 8'd78;
+    localparam ASCII_F = 8'd70;
+    localparam ASCII_I = 8'd73;
+    localparam ASCII_G = 8'd71;
+    localparam ASCII_M = 8'd77;
+    localparam ASCII_A = 8'd65;
+    localparam ASCII_X = 8'd88;
+    localparam ASCII_R = 8'd82;
+    localparam ASCII_E = 8'd69;
+    localparam ASCII_T = 8'd84;
+    localparam ASCII_U = 8'd85;
+    localparam ASCII_S = 8'd83;       // 【新增】'S' for SCALAR
+    localparam ASCII_L = 8'd76;       // 【新增】'L' for SCALAR
     
-    // 【新增】命令识别缓冲区
-    reg [47:0] cmd_buffer;            // 存储最近6个字符 "CONFIG"
-    reg [31:0] sub_buffer;            // 存储子命令 "MAX" / "RANGE" / "COUNT"
+    // 命令识别缓冲区
+    reg [47:0] cmd_buffer;            // 存储 "CONFIG" (6字符)
+    reg [47:0] sub_buffer;            // 存储子命令 "MAX" / "RANGE" / "COUNT" / "SCALAR"
+    
+    reg cmd_detected;                 // 命令检测标志
+    reg [2:0] detected_type;          // 检测到的命令类型
 
     // ==========================================================================
     // 状态转换逻辑
@@ -105,11 +108,12 @@ module uart_cmd_parser (
         
         case (state)
             IDLE: begin
-                if (in_operand_select)
+                if (cmd_detected)
+                    next_state = CONFIG_VAL1;
+                else if (in_operand_select)
                     next_state = WAIT_ID_A;
                 else if (start_input || start_gen)
                     next_state = WAIT_M;
-                // 【新增】检测到CONFIG命令（在输出逻辑中识别）
             end
             
             WAIT_M: begin
@@ -128,11 +132,11 @@ module uart_cmd_parser (
             
             WAIT_DATA: begin
                 case (mode_sel)
-                    2'b01: begin  // INPUT
+                    2'b01: begin
                         if (data_cnt >= data_total)
                             next_state = DONE;
                     end
-                    2'b10: begin  // GEN
+                    2'b10: begin
                         if (data_cnt >= 1)
                             next_state = DONE;
                     end
@@ -150,16 +154,10 @@ module uart_cmd_parser (
                     next_state = DONE;
             end
             
-            // 【新增】CONFIG命令解析状态
-            CONFIG_CMD: begin
-                // 等待第一个配置值
-                next_state = CONFIG_VAL1;
-            end
-            
             CONFIG_VAL1: begin
                 if (rx_valid && (rx_data == ASCII_SPACE || rx_data == ASCII_CR || rx_data == ASCII_LF)) begin
                     // 如果是RANGE命令，需要第二个值
-                    if (config_type == 3'd1)  // RANGE
+                    if (detected_type == 3'd1)
                         next_state = CONFIG_VAL2;
                     else
                         next_state = DONE;
@@ -184,7 +182,6 @@ module uart_cmd_parser (
     // ==========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            // ===== 初始化所有输出 =====
             dim_m <= 3'd0;
             dim_n <= 3'd0;
             elem_data <= 8'd0;
@@ -203,13 +200,14 @@ module uart_cmd_parser (
             user_id_b <= 4'd0;
             user_input_valid <= 1'b0;
             
-            // 【新增】CONFIG相关初始化
             config_valid <= 1'b0;
             config_type <= 3'd0;
             config_value1 <= 8'sd0;
             config_value2 <= 8'sd0;
             cmd_buffer <= 48'd0;
-            sub_buffer <= 32'd0;
+            sub_buffer <= 48'd0;
+            cmd_detected <= 1'b0;
+            detected_type <= 3'd0;
             
         end else begin
             // ===== 默认清除单周期信号 =====
@@ -217,20 +215,66 @@ module uart_cmd_parser (
             data_ready <= 1'b0;
             user_input_valid <= 1'b0;
             config_valid <= 1'b0;
+            cmd_detected <= 1'b0;
             
-            // 【新增】命令缓冲区滚动更新（持续检测CONFIG命令）
+            // ===== 命令缓冲区滚动更新 =====
             if (rx_valid && state == IDLE) begin
                 cmd_buffer <= {cmd_buffer[39:0], rx_data};
+                sub_buffer <= {sub_buffer[39:0], rx_data};
                 
-                // 检测 "CONFIG" 命令 (6个字符)
+                // ========== 检测 "CONFIG" 命令 ==========
                 if (cmd_buffer[47:40] == ASCII_C &&
                     cmd_buffer[39:32] == ASCII_O &&
                     cmd_buffer[31:24] == ASCII_N &&
                     cmd_buffer[23:16] == ASCII_F &&
                     cmd_buffer[15:8]  == ASCII_I &&
                     rx_data == ASCII_G) begin
-                    // 识别到CONFIG命令，准备解析子命令
-                    sub_buffer <= 32'd0;
+                    // 进入等待子命令状态
+                    sub_buffer <= 48'd0;
+                end
+                
+                // ========== 检测子命令 ==========
+                // 前提：已识别到 "CONFIG "
+                if (cmd_buffer[47:8] == {ASCII_C, ASCII_O, ASCII_N, ASCII_F, ASCII_I, ASCII_G, ASCII_SPACE, 8'd0}) begin
+                    
+                    // 检测 "MAX" (3字符)
+                    if (sub_buffer[23:16] == ASCII_M &&
+                        sub_buffer[15:8]  == ASCII_A &&
+                        rx_data == ASCII_X) begin
+                        detected_type <= 3'd0;  // CONFIG_MAX_PER_SIZE
+                        cmd_detected <= 1'b1;
+                    end
+                    
+                    // 检测 "RANGE" (5字符)
+                    else if (sub_buffer[39:32] == ASCII_R &&
+                             sub_buffer[31:24] == ASCII_A &&
+                             sub_buffer[23:16] == ASCII_N &&
+                             sub_buffer[15:8]  == ASCII_G &&
+                             rx_data == ASCII_E) begin
+                        detected_type <= 3'd1;  // CONFIG_ELEM_RANGE
+                        cmd_detected <= 1'b1;
+                    end
+                    
+                    // 检测 "COUNT" (5字符)
+                    else if (sub_buffer[39:32] == ASCII_C &&
+                             sub_buffer[31:24] == ASCII_O &&
+                             sub_buffer[23:16] == ASCII_U &&
+                             sub_buffer[15:8]  == ASCII_N &&
+                             rx_data == ASCII_T) begin
+                        detected_type <= 3'd2;  // CONFIG_COUNTDOWN
+                        cmd_detected <= 1'b1;
+                    end
+                    
+                    // 【新增】检测 "SCALAR" (6字符)
+                    else if (sub_buffer[47:40] == ASCII_S &&
+                             sub_buffer[39:32] == ASCII_C &&
+                             sub_buffer[31:24] == ASCII_A &&
+                             sub_buffer[23:16] == ASCII_L &&
+                             sub_buffer[15:8]  == ASCII_A &&
+                             rx_data == ASCII_R) begin
+                        detected_type <= 3'd4;  // CONFIG_SCALAR
+                        cmd_detected <= 1'b1;
+                    end
                 end
             end
             
@@ -241,34 +285,6 @@ module uart_cmd_parser (
                     num_buffer <= 8'd0;
                     num_building <= 1'b0;
                     is_negative <= 1'b0;
-                    
-                    // 【新增】检测CONFIG子命令
-                    if (rx_valid && cmd_buffer[47:8] == {ASCII_C, ASCII_O, ASCII_N, ASCII_F, ASCII_I, ASCII_G}) begin
-                        sub_buffer <= {sub_buffer[23:0], rx_data};
-                        
-                        // 识别 "MAX" (CONFIG MAX)
-                        if (sub_buffer[23:16] == ASCII_M &&
-                            sub_buffer[15:8]  == ASCII_A &&
-                            rx_data == ASCII_X) begin
-                            config_type <= 3'd0;  // MAX_PER_SIZE
-                        end
-                        // 识别 "RANGE" (CONFIG RANGE)
-                        else if (sub_buffer[31:24] == ASCII_R &&
-                                 sub_buffer[23:16] == ASCII_A &&
-                                 sub_buffer[15:8]  == ASCII_N &&
-                                 sub_buffer[7:0]   == ASCII_G &&
-                                 rx_data == ASCII_E) begin
-                            config_type <= 3'd1;  // ELEM_RANGE
-                        end
-                        // 识别 "COUNT" (CONFIG COUNT)
-                        else if (sub_buffer[31:24] == ASCII_C &&
-                                 sub_buffer[23:16] == ASCII_O &&
-                                 sub_buffer[15:8]  == ASCII_U &&
-                                 sub_buffer[7:0]   == ASCII_N &&
-                                 rx_data == ASCII_T) begin
-                            config_type <= 3'd2;  // COUNTDOWN
-                        end
-                    end
                 end
                 
                 WAIT_M: begin
@@ -320,14 +336,14 @@ module uart_cmd_parser (
                         end
                         else if (rx_data == ASCII_SPACE || rx_data == ASCII_CR || rx_data == ASCII_LF) begin
                             case (mode_sel)
-                                2'b01: begin  // INPUT
+                                2'b01: begin
                                     if (data_cnt < data_total) begin
                                         elem_data <= num_buffer;
                                         write_en <= 1'b1;
                                         data_cnt <= data_cnt + 1;
                                     end
                                 end
-                                2'b10: begin  // GEN
+                                2'b10: begin
                                     count <= num_buffer[3:0];
                                     data_cnt <= data_cnt + 1;
                                 end
@@ -377,7 +393,7 @@ module uart_cmd_parser (
                     end
                 end
                 
-                // 【新增】CONFIG值解析
+                // ========== CONFIG值解析（支持负数）==========
                 CONFIG_VAL1: begin
                     if (rx_valid) begin
                         // 检测负号
@@ -400,12 +416,13 @@ module uart_cmd_parser (
                             else
                                 config_value1 <= $signed(num_buffer);
                             
+                            config_type <= detected_type;
                             num_buffer <= 8'd0;
                             num_building <= 1'b0;
                             is_negative <= 1'b0;
                             
                             // 如果不是RANGE命令，立即发送
-                            if (config_type != 3'd1) begin
+                            if (detected_type != 3'd1) begin
                                 config_valid <= 1'b1;
                             end
                         end
@@ -431,7 +448,7 @@ module uart_cmd_parser (
                             else
                                 config_value2 <= $signed(num_buffer);
                             
-                            config_valid <= 1'b1;  // 发送配置命令
+                            config_valid <= 1'b1;
                             num_buffer <= 8'd0;
                             num_building <= 1'b0;
                             is_negative <= 1'b0;
@@ -449,3 +466,24 @@ module uart_cmd_parser (
     end
 
 endmodule
+
+/******************************************************************************
+ * UART命令使用示例
+ * 
+ * 1. 矩阵输入：
+ *    3 3 1 2 3 4 5 6 7 8 9
+ * 
+ * 2. 随机生成：
+ *    3 3 5
+ * 
+ * 3. 运算数选择：
+ *    2 3
+ * 
+ * 4. CONFIG命令：
+ *    CONFIG MAX 5
+ *    CONFIG RANGE -3 20
+ *    CONFIG COUNT 15
+ *    CONFIG SCALAR 7       【新增】
+ *    CONFIG SCALAR -5      【新增】支持负数
+ *    CONFIG SHOW
+ ******************************************************************************/

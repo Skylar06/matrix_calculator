@@ -22,6 +22,7 @@ module display_formatter (
     output reg [7:0] tx_data,               // 待发送的字符
     output reg tx_valid,                    // 发送有效标志
     input wire tx_busy,                     // UART忙标志
+    output reg data_req,                    // 【新增】请求下一数据的脉冲
     
     // ========== 输出 ==========
     output reg format_done                  // 格式化完成标志
@@ -53,6 +54,8 @@ module display_formatter (
     // ========== 缓存当前矩阵信息 ==========
     reg [2:0] current_m, current_n;         // 当前矩阵的维度
     reg [3:0] current_id;                   // 当前矩阵的ID
+    reg [7:0] current_data;                 // 【新增】缓存当前元素
+    reg waiting_data;                       // 【新增】等待新数据标志
     
     /**************************************************************************
      * 函数：数字转ASCII
@@ -84,7 +87,11 @@ module display_formatter (
             current_m <= 3'd0;
             current_n <= 3'd0;
             current_id <= 4'd0;
+            current_data <= 8'd0;
+            waiting_data <= 1'b0;
+            data_req <= 1'b0;
         end else begin
+            data_req <= 1'b0;  // 默认拉低请求
             case (state)
                 // ========== 状态0：空闲 ==========
                 IDLE: begin
@@ -94,6 +101,7 @@ module display_formatter (
                     elem_cnt <= 5'd0;
                     col_cnt <= 3'd0;
                     list_idx <= 4'd0;
+                    waiting_data <= 1'b0;
                     
                     if (start_format) begin
                         // 缓存矩阵信息
@@ -193,10 +201,14 @@ module display_formatter (
                             char_idx <= 5'd0;
                             
                             // 根据模式选择下一状态
-                            if (display_mode == 2'd1)
+                            if (display_mode == 2'd1) begin
                                 state <= SEND_LIST;     // 列表模式
-                            else
+                            end else begin
+                                // 准备请求第一组数据
+                                waiting_data <= 1'b1;
+                                data_req <= 1'b1;
                                 state <= SEND_MATRIX;   // 矩阵模式
+                            end
                         end
                     end else begin
                         tx_valid <= 1'b0;  // UART忙，等待
@@ -207,21 +219,29 @@ module display_formatter (
                 // 格式：每个数字后跟空格，行末换行
                 // 例如："1 2 3\n4 5 6\n"
                 SEND_MATRIX: begin
-                    if (matrix_data_valid && !tx_busy) begin
+                    // 等待新的数据到来
+                    if (waiting_data) begin
+                        if (matrix_data_valid) begin
+                            current_data <= matrix_data;
+                            waiting_data <= 1'b0;
+                            char_idx <= 5'd0;
+                        end else begin
+                            data_req <= 1'b1; // 继续请求
+                        end
+                    end
+                    // 数据已缓存，按字符发送
+                    else if (!tx_busy) begin
                         // ===== 子状态0：发送十位数字 =====
                         if (char_idx == 0) begin
-                            if (matrix_data >= 10) begin
-                                tx_data <= digit_to_ascii(matrix_data / 10);
+                            if (current_data >= 10) begin
+                                tx_data <= digit_to_ascii(current_data / 10);
                                 tx_valid <= 1'b1;
-                                char_idx <= 5'd1;
-                            end else begin
-                                // 数字<10，跳过十位
-                                char_idx <= 5'd1;
                             end
+                            char_idx <= 5'd1;
                         end
                         // ===== 子状态1：发送个位数字 =====
                         else if (char_idx == 1) begin
-                            tx_data <= digit_to_ascii(matrix_data % 10);
+                            tx_data <= digit_to_ascii(current_data % 10);
                             tx_valid <= 1'b1;
                             char_idx <= 5'd2;
                         end
@@ -243,6 +263,9 @@ module display_formatter (
                             // 检查是否全部发送完成
                             if (elem_cnt >= elem_total - 1) begin
                                 state <= SEND_NEWLINE;
+                            end else begin
+                                waiting_data <= 1'b1;
+                                data_req <= 1'b1;   // 请求下一个元素
                             end
                         end
                     end else begin

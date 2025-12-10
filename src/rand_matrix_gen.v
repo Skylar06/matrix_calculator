@@ -40,6 +40,11 @@ module rand_matrix_gen (
     reg [3:0] matrix_count;
     reg [4:0] elem_count;
     reg [4:0] elem_total;
+
+    // 预先声明的临时寄存器，避免过程块内声明导致综合/语法问题
+    reg signed [15:0] range;
+    reg signed [15:0] random_value;
+    reg signed [15:0] lfsr_signed;
     
     /**************************************************************************
      * 主状态机
@@ -74,10 +79,6 @@ module rand_matrix_gen (
                 GENERATING: begin
                     if (elem_count < elem_total) begin
                         // ===== 【关键修改】使用config_manager的参数生成随机数 =====
-                        reg signed [15:0] range;
-                        reg signed [15:0] random_value;
-                        reg signed [15:0] lfsr_signed;
-                        
                         // 计算范围：[elem_min_cfg, elem_max_cfg]
                         range = elem_max_cfg - elem_min_cfg + 1;
                         lfsr_signed = $signed({1'b0, lfsr[14:0]});  // 转有符号

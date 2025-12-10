@@ -231,7 +231,7 @@ module ctrl_fsm (
             tx_start <= 1'b0;  
             start_select <= 1'b0;  
             start_format <= 1'b0;  
-
+  
             // ===== 倒计时处理 =====  
             if (state == S_ERROR && countdown_val > 0) begin  
                 if (timer_cnt >= CLK_FREQ - 1) begin  
@@ -241,47 +241,49 @@ module ctrl_fsm (
                     timer_cnt <= timer_cnt + 1;  
                 end  
             end  
-
+  
             case (state)  
                 S_MENU: begin  
                     mode_sel <= 2'b00;  
                     countdown_val <= 8'd0;  
                     timer_cnt <= 26'd0;  
                 end  
-
+  
                 S_INPUT: begin  
                     mode_sel <= 2'b01;  
                     if (prev_state != S_INPUT)  
                         start_input <= 1'b1;  
                 end  
-
+  
                 S_GEN: begin  
                     mode_sel <= 2'b10;  
                     if (prev_state != S_GEN)  
                         start_gen <= 1'b1;  
                 end  
-
+  
                 S_GEN_SHOW: begin  
                     mode_sel <= 2'b10;  
                     if (prev_state != S_GEN_SHOW) begin  
                         display_mode <= 2'd0;  
+                        start_disp <= 1'b1;  
                         start_format <= 1'b1;  
                     end  
                 end  
-
+  
                 S_DISPLAY: begin  
                     mode_sel <= 2'b11;  
                     if (prev_state != S_DISPLAY || key_next) begin  
                         display_mode <= 2'd0;  
+                        start_disp <= 1'b1;  
                         start_format <= 1'b1;  
                     end  
                 end  
-
+  
                 S_OP_SELECT: begin  
                     mode_sel <= 2'b11;  
                     op_sel <= op_sel_sw;  
                 end  
-
+  
                 S_OP_SHOW_LIST: begin  
                     mode_sel <= 2'b11;  
                     if (prev_state != S_OP_SHOW_LIST) begin  
@@ -289,7 +291,7 @@ module ctrl_fsm (
                         start_format <= 1'b1;  
                     end  
                 end  
-
+  
                 S_OP_OPERAND: begin  
                     mode_sel <= 2'b11;  
                     manual_mode <= manual_select_mode;  
@@ -303,13 +305,32 @@ module ctrl_fsm (
                         operand_b_id <= selected_b;  
                     end  
                 end  
-
+  
                 S_OP_RUN: begin  
                     mode_sel <= 2'b11;  
                     if (prev_state != S_OP_RUN)  
                         start_op <= 1'b1;  
                 end  
-
+  
                 S_OP_RESULT: begin  
                     mode_sel <= 2'b11;  
-                    if (prev_state != S_
+                    if (prev_state != S_OP_RESULT) begin  
+                        display_mode <= 2'd2;  
+                        start_disp <= 1'b1;  
+                        start_format <= 1'b1;  
+                    end  
+                end  
+  
+                S_ERROR: begin  
+                    mode_sel <= 2'b00;  
+                    if (prev_state != S_ERROR) begin  
+                        countdown_val <= countdown_init_cfg;  
+                        timer_cnt <= 26'd0;  
+                    end  
+                end  
+  
+                default: ;  
+            endcase  
+        end  
+    end  
+endmodule  

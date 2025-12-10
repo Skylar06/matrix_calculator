@@ -38,6 +38,7 @@ module matrix_storage (
     output reg [7:0] data_out,
     output reg [3:0] matrix_id_out,
     output reg meta_info_valid,
+    output reg matrix_data_valid,            // 【新增】数据有效脉冲
     output reg error_flag,
     
     // ========== 运算数缓冲区 ==========
@@ -247,6 +248,7 @@ module matrix_storage (
             data_out <= 8'd0;
             matrix_id_out <= 4'd0;
             meta_info_valid <= 1'b0;
+            matrix_data_valid <= 1'b0;
             error_flag <= 1'b0;
             
             result_matrix_id <= 4'd0;
@@ -260,6 +262,7 @@ module matrix_storage (
         end else begin
             // ===== 默认清除单周期标志 =====
             meta_info_valid <= 1'b0;
+            matrix_data_valid <= 1'b0;
             error_flag <= 1'b0;
             
             // ========== 处理1：启动写入流程 ==========
@@ -330,6 +333,7 @@ module matrix_storage (
             if (reading && read_en) begin
                 data_out <= ram[read_matrix_id * MAX_ELEMENTS + read_elem_idx];
                 matrix_id_out <= read_matrix_id;
+                matrix_data_valid <= 1'b1;   // 【新增】与data_out对齐的有效信号
                 read_elem_idx <= read_elem_idx + 1;
                 
                 if (read_elem_idx >= read_elem_total - 1) begin
