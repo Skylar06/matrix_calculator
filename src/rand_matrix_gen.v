@@ -1,113 +1,120 @@
 module rand_matrix_gen (
     input wire clk,
     input wire rst_n,
-    input wire start_gen,           // 开始生成信号
-    input wire [2:0] dim_m,         // 矩阵行数
-    input wire [2:0] dim_n,         // 矩阵列数
-    input wire [3:0] count,         // 生成矩阵个数 (从uart_cmd_parser来)
-    input wire [7:0] elem_min,      // 元素最小值
-    input wire [7:0] elem_max,      // 元素最大值
     
-    output reg gen_done,            // 生成完成标志
-    output reg [7:0] data_out,      // 生成的随机数据
-    output reg write_en             // 写使能(每生成一个元素产生脉冲)
+    // ========== 【新增】配置参数输入 ==========
+    input wire signed [7:0] elem_min_cfg,       // 来自config_manager
+    input wire signed [7:0] elem_max_cfg,       // 来自config_manager
+    
+    // ========== 控制接口 ==========
+    input wire start_gen,
+    input wire [2:0] dim_m,
+    input wire [2:0] dim_n,
+    input wire [3:0] count,
+    
+    // ========== 输出接口 ==========
+    output reg gen_done,
+    output reg [7:0] data_out,
+    output reg write_en
 );
 
-    // ========== 状态定义 ==========
+    // ==========================================================================
+    // 状态定义
+    // ==========================================================================
     localparam IDLE = 2'd0;
     localparam GENERATING = 2'd1;
     localparam DONE = 2'd2;
     
     reg [1:0] state;
     
-    // ========== 计数器 ==========
-    reg [4:0] elem_cnt;             // 当前矩阵的元素计数
-    reg [4:0] elem_total;           // 每个矩阵的总元素数 = m * n
-    reg [3:0] matrix_cnt;           // 当前生成的矩阵数
-    reg [3:0] matrix_total;         // 需要生成的矩阵总数
+    // ==========================================================================
+    // LFSR随机数生成器
+    // ==========================================================================
+    reg [15:0] lfsr;
+    wire lfsr_feedback;
+    assign lfsr_feedback = lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10];
     
-    // ========== 线性反馈移位寄存器(LFSR) - 真随机数生成 ==========
-    // 使用32位LFSR,多项式: x^32 + x^22 + x^2 + x^1 + 1
-    reg [31:0] lfsr;
-    wire feedback;
-    assign feedback = lfsr[31] ^ lfsr[21] ^ lfsr[1] ^ lfsr[0];
+    // ==========================================================================
+    // 计数器
+    // ==========================================================================
+    reg [3:0] matrix_count;
+    reg [4:0] elem_count;
+    reg [4:0] elem_total;
     
-    // 第二个LFSR用于增加随机性
-    reg [31:0] lfsr2;
-    wire feedback2;
-    assign feedback2 = lfsr2[31] ^ lfsr2[27] ^ lfsr2[15] ^ lfsr2[0];
-    
-    // ========== 随机数生成 - 映射到[elem_min, elem_max]范围 ==========
-    wire [7:0] rand_range;
-    wire [7:0] rand_value;
-    assign rand_range = elem_max - elem_min + 1;
-    
-    // 使用两个LFSR的异或增加随机性
-    wire [7:0] lfsr_byte;
-    assign lfsr_byte = (lfsr[7:0] ^ lfsr2[15:8]) % rand_range;
-    assign rand_value = elem_min + lfsr_byte;
-    
-    // ========== 状态机 ==========
+    /**************************************************************************
+     * 主状态机
+     **************************************************************************/
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state <= IDLE;
-            gen_done <= 1'b0;
-            write_en <= 1'b0;
-            data_out <= 8'd0;
-            elem_cnt <= 5'd0;
+            lfsr <= 16'hACE1;
+            matrix_count <= 4'd0;
+            elem_count <= 5'd0;
             elem_total <= 5'd0;
-            matrix_cnt <= 4'd0;
-            matrix_total <= 4'd0;
-            // 使用不同的初始种子
-            lfsr <= 32'hACE1_ACE1;  // 非零初始值
-            lfsr2 <= 32'h1234_5678; // 非零初始值
+            gen_done <= 1'b0;
+            data_out <= 8'd0;
+            write_en <= 1'b0;
         end else begin
-            // 默认关闭write_en(脉冲信号)
+            // ===== LFSR持续更新 =====
+            lfsr <= {lfsr[14:0], lfsr_feedback};
+            
+            gen_done <= 1'b0;
             write_en <= 1'b0;
             
             case (state)
                 IDLE: begin
-                    gen_done <= 1'b0;
-                    elem_cnt <= 5'd0;
-                    matrix_cnt <= 4'd0;
-                    
                     if (start_gen) begin
-                        // 计算参数
-                        elem_total <= dim_m * dim_n;      // 每个矩阵的元素数
-                        matrix_total <= count;             // 需要生成的矩阵数
+                        matrix_count <= 4'd0;
+                        elem_count <= 5'd0;
+                        elem_total <= dim_m * dim_n;
                         state <= GENERATING;
-                        
-                        // 更新LFSR种子(使用系统运行时间)
-                        lfsr <= {lfsr[30:0], feedback};
-                        lfsr2 <= {lfsr2[30:0], feedback2};
                     end
                 end
                 
                 GENERATING: begin
-                    // 每个周期更新LFSR生成新随机数
-                    lfsr <= {lfsr[30:0], feedback};
-                    lfsr2 <= {lfsr2[30:0], feedback2};
-                    
-                    // 输出当前随机数
-                    data_out <= rand_value;
-                    write_en <= 1'b1;           // 产生写使能脉冲
-                    elem_cnt <= elem_cnt + 1;
-                    
-                    // 检查当前矩阵是否生成完成
-                    if (elem_cnt >= elem_total - 1) begin
-                        elem_cnt <= 5'd0;               // 重置元素计数
-                        matrix_cnt <= matrix_cnt + 1;   // 矩阵计数+1
+                    if (elem_count < elem_total) begin
+                        // ===== 【关键修改】使用config_manager的参数生成随机数 =====
+                        reg signed [15:0] range;
+                        reg signed [15:0] random_value;
+                        reg signed [15:0] lfsr_signed;
                         
-                        // 检查是否所有矩阵都生成完成
-                        if (matrix_cnt >= matrix_total - 1) begin
-                            state <= DONE;
+                        // 计算范围：[elem_min_cfg, elem_max_cfg]
+                        range = elem_max_cfg - elem_min_cfg + 1;
+                        lfsr_signed = $signed({1'b0, lfsr[14:0]});  // 转有符号
+                        
+                        // 确保正数
+                        if (lfsr_signed < 0) begin
+                            lfsr_signed = -lfsr_signed;
                         end
-                        // 否则继续生成下一个矩阵
+                        
+                        // 映射到目标范围
+                        random_value = elem_min_cfg + (lfsr_signed % range);
+                        
+                        // 边界保护
+                        if (random_value > elem_max_cfg) begin
+                            random_value = elem_max_cfg;
+                        end
+                        if (random_value < elem_min_cfg) begin
+                            random_value = elem_min_cfg;
+                        end
+                        
+                        data_out <= random_value[7:0];
+                        write_en <= 1'b1;
+                        elem_count <= elem_count + 1;
+                    end else begin
+                        // ===== 当前矩阵生成完成 =====
+                        matrix_count <= matrix_count + 1;
+                        
+                        if (matrix_count >= count - 1) begin
+                            state <= DONE;
+                        end else begin
+                            elem_count <= 5'd0;  // 重置计数器，生成下一个矩阵
+                        end
                     end
                 end
                 
                 DONE: begin
-                    gen_done <= 1'b1;  // 所有矩阵生成完成
+                    gen_done <= 1'b1;
                     state <= IDLE;
                 end
                 
@@ -117,31 +124,3 @@ module rand_matrix_gen (
     end
 
 endmodule
-
-// ============================================================================
-// 使用说明:
-//
-// 输入参数:
-//   dim_m, dim_n: 矩阵维度 (例如 3x3)
-//   count:        生成矩阵个数 (例如 2,表示生成2个3x3矩阵)
-//   elem_min:     元素最小值 (默认0)
-//   elem_max:     元素最大值 (默认9)
-//
-// 输出:
-//   data_out:  每个周期输出一个随机数
-//   write_en:  每生成一个元素产生一个脉冲
-//   gen_done:  所有矩阵生成完成后置1
-//
-// 示例:
-//   输入: dim_m=2, dim_n=3, count=2 (生成2个2x3矩阵)
-//   输出: 连续输出12个随机数 (2个矩阵 × 6个元素)
-//         data_out: 8,2,6,5,7,9,1,4,3,2,8,5
-//                   ↑____矩阵A____↑ ↑____矩阵B____↑
-//         write_en: 12个脉冲
-//         gen_done: 生成完成后置1
-//
-// 随机性保证:
-//   - 使用双LFSR异或,非递增/递减序列
-//   - 每次启动时更新种子
-//   - 输出范围严格在[elem_min, elem_max]
-// ============================================================================
