@@ -262,7 +262,7 @@ module mat_ops (
                         if (mat_c[write_idx] > 127)
                             result_data <= 8'd127;
                         else if (mat_c[write_idx] < -128)
-                            result_data <= 8'd128;  // -128的补码表示
+                            result_data <= 8'h80;  // -128的补码表示
                         else
                             result_data <= mat_c[write_idx][7:0];
                         

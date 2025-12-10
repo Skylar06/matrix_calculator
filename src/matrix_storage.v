@@ -98,6 +98,7 @@ module matrix_storage (
     reg [3:0] result_matrix_id;
     reg [4:0] result_elem_idx;
     reg storing_result;
+    reg pending_result;                     // 【新增】等待存储标志，防止op_done脉冲丢失
     
     integer i, j;
     
@@ -254,6 +255,7 @@ module matrix_storage (
             result_matrix_id <= 4'd0;
             result_elem_idx <= 5'd0;
             storing_result <= 1'b0;
+            pending_result <= 1'b0;
             
             matrix_a_m <= 3'd0;
             matrix_a_n <= 3'd0;
@@ -265,6 +267,11 @@ module matrix_storage (
             matrix_data_valid <= 1'b0;
             error_flag <= 1'b0;
             
+            // ===== 捕获运算完成脉冲 =====
+            if (op_done) begin
+                pending_result <= 1'b1;
+            end
+
             // ========== 处理1：启动写入流程 ==========
             if (start_input && !writing && slot_search_done) begin
                 if (dim_m < 3'd1 || dim_m > 3'd5 || dim_n < 3'd1 || dim_n > 3'd5) begin
@@ -297,10 +304,11 @@ module matrix_storage (
             end
             
             // ========== 处理3：启动结果存储流程 ==========
-            if (op_done && !storing_result && slot_search_done) begin
+            if (pending_result && !storing_result && slot_search_done) begin
                 result_matrix_id <= found_slot;
                 result_elem_idx <= 5'd0;
                 storing_result <= 1'b1;
+                pending_result <= 1'b0;  // 已开始存储，清除等待
             end
             
             // ========== 处理4：存储运算结果数据流 ==========
