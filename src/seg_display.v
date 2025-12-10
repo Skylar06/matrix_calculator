@@ -19,7 +19,8 @@ module seg_display (
     reg [1:0] scan_idx;                 // 当前扫描索引 (0-3)
     
     // ========== 显示内容寄存器 ==========
-    // digit[0]=G6(最右)  digit[1]=G1  digit[2]=H1  digit[3]=G2(最左)
+    // 根据约束文件：seg_sel[0]=G2, seg_sel[1]=C2, seg_sel[2]=C1, seg_sel[3]=H1
+    // digit[0]对应seg_sel[0]=G2(最右)  digit[1]对应seg_sel[1]=C2  digit[2]对应seg_sel[2]=C1  digit[3]对应seg_sel[3]=H1(最左)
     reg [3:0] digit [0:3];
     
     // 用于字母显示的特殊标记
@@ -80,10 +81,11 @@ module seg_display (
     // ========== 准备显示内容 ==========
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            digit[0] <= 4'd0;
-            digit[1] <= 4'd0;
-            digit[2] <= 4'd0;
-            digit[3] <= 4'd0;
+            // 复位时初始化为全灭（空格），对应MENU模式
+            digit[0] <= 4'd15;  // 空格（全灭）
+            digit[1] <= 4'd15;  // 空格（全灭）
+            digit[2] <= 4'd15;  // 空格（全灭）
+            digit[3] <= 4'd15;  // 空格（全灭）
             show_op_type <= 1'b0;
         end else begin
             // 默认不显示运算类型
@@ -126,14 +128,14 @@ module seg_display (
                 
                 // ===== DISPLAY/OPERATION模式 =====
                 2'b11: begin
-                    // 最右边: 矩阵编号 (G6)
+                    // 最右边: 矩阵编号 (G2, seg_sel[0])
                     digit[0] <= matrix_id_out;
                     
-                    // 最左边: 显示运算类型 (G2)
+                    // 最左边: 显示运算类型 (H1, seg_sel[3])
                     digit[3] <= op_sel[2:0];  // 存储op_sel用于后续转换
                     show_op_type <= 1'b1;     // 标记需要显示字母
                     
-                    // 中间两位: 空格
+                    // 中间两位: 空格 (C2和C1, seg_sel[1]和seg_sel[2])
                     digit[2] <= 4'd15;
                     digit[1] <= 4'd15;
                 end
@@ -156,10 +158,10 @@ module seg_display (
         end else begin
             // ===== 片选信号 (高电平有效) =====
             case (scan_idx)
-                2'd0: seg_sel <= 4'b0001;  // digit[0] - G6 (最右)
-                2'd1: seg_sel <= 4'b0010;  // digit[1] - G1
-                2'd2: seg_sel <= 4'b0100;  // digit[2] - H1
-                2'd3: seg_sel <= 4'b1000;  // digit[3] - G2 (最左)
+                2'd0: seg_sel <= 4'b0001;  // digit[0] - G2 (最右，seg_sel[0])
+                2'd1: seg_sel <= 4'b0010;  // digit[1] - C2 (seg_sel[1])
+                2'd2: seg_sel <= 4'b0100;  // digit[2] - C1 (seg_sel[2])
+                2'd3: seg_sel <= 4'b1000;  // digit[3] - H1 (最左，seg_sel[3])
                 default: seg_sel <= 4'b0000;
             endcase
             

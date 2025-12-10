@@ -69,6 +69,7 @@ module matrix_storage (
     reg [4:0] write_elem_idx;
     reg [4:0] write_elem_total;
     reg       writing;
+    reg       start_input_prev;  // 用于检测start_input下降沿
 
     // read state
     reg [3:0] read_matrix_id;
@@ -217,6 +218,7 @@ module matrix_storage (
             write_elem_idx   <= 5'd0;
             write_elem_total <= 5'd0;
             writing          <= 1'b0;
+            start_input_prev <= 1'b0;
             read_matrix_id   <= 4'd0;
             read_elem_idx    <= 5'd0;
             read_elem_total  <= 5'd0;
@@ -255,6 +257,9 @@ module matrix_storage (
                 end
             end
 
+            // 检测start_input下降沿
+            start_input_prev <= start_input;
+            
             if (writing && write_en) begin
                 if ($signed(data_in) < elem_min || $signed(data_in) > elem_max) begin
                     error_flag <= 1'b1;
@@ -268,6 +273,20 @@ module matrix_storage (
                         meta_valid_internal[write_matrix_id] <= 1'b1;
                         writing <= 1'b0;
                     end
+                end
+            end
+            
+            // 修复：如果输入元素个数不足，剩余位置自动填0
+            // 当start_input下降沿（输入完成）但writing还在进行时，自动填充剩余位置为0
+            if (writing && start_input_prev && !start_input && write_elem_idx < write_elem_total) begin
+                // 输入已完成但元素不足，剩余位置填0
+                ram[write_matrix_id * MAX_ELEMENTS + write_elem_idx] <= 8'd0;
+                write_elem_idx <= write_elem_idx + 1;
+                if (write_elem_idx >= write_elem_total - 1) begin
+                    meta_m[write_matrix_id] <= dim_m;
+                    meta_n[write_matrix_id] <= dim_n;
+                    meta_valid_internal[write_matrix_id] <= 1'b1;
+                    writing <= 1'b0;
                 end
             end
 

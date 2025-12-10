@@ -1,7 +1,7 @@
 /******************************************************************************
  * ???????: mat_ops
  * ????????: ???????????
- *          - ?????á?????????????????????????
+ *          - ????????????????????????????????
  *          - ???????????????????????
  ******************************************************************************/
 module mat_ops (
@@ -50,11 +50,11 @@ module mat_ops (
     reg [2:0] state;
     
     // ==========================================================================
-    // ??????????棨?????????????
+    // ?????????????????????????
     // ==========================================================================
     reg [7:0] mat_a [0:24];                 // ????A????????
     reg [7:0] mat_b [0:24];                 // ????B????????
-    reg signed [15:0] mat_c [0:24];         // ???????C??16λ????????
+    reg signed [15:0] mat_c [0:24];         // ???????C??16??????????
     
     // ==========================================================================
     // ??????????
@@ -65,7 +65,7 @@ module mat_ops (
     // ??????????
     // ==========================================================================
     reg [4:0] compute_idx;                  // ????????
-    reg [4:0] write_idx;                    // д??????
+    reg [4:0] write_idx;                    // ????????
     reg [4:0] total_elements;               // ??????????
     
     integer i, j, k;                        // ???????
@@ -76,7 +76,7 @@ module mat_ops (
      **************************************************************************/
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            // ===== ??λ???м???? =====
+            // ===== ????????????? =====
             state <= IDLE;
             op_done <= 1'b0;
             busy_flag <= 1'b0;
@@ -153,18 +153,9 @@ module mat_ops (
                             end
                             
                             OP_CONV: begin
-                                // ??????????????Ч???? (valid convolution)
-                                // ????B????????A??????
-                                if (dim_a_m < dim_b_m || dim_a_n < dim_b_n) begin
-                                    state <= ERROR;
-                                    error_flag <= 1'b1;
-                                end else begin
-                                    dim_c_m <= dim_a_m - dim_b_m + 1;
-                                    dim_c_n <= dim_a_n - dim_b_n + 1;
-                                    total_elements <= (dim_a_m - dim_b_m + 1) * 
-                                                     (dim_a_n - dim_b_n + 1);
-                                    state <= LOAD_DATA;
-                                end
+                                // 卷积功能已禁用（节省资源）
+                                state <= ERROR;
+                                error_flag <= 1'b1;
                             end
                             
                             default: begin
@@ -190,36 +181,42 @@ module mat_ops (
                 // ========== ??2?????? ==========
                 COMPUTE: begin
                     case (op_sel)
-                        // ===== ??????? =====
+                        // ===== ???????????????????????????=====
                         OP_TRANSPOSE: begin
-                            // C[j][i] = A[i][j]
-                            for (i = 0; i < dim_a_m; i = i + 1) begin
-                                for (j = 0; j < dim_a_n; j = j + 1) begin
-                                    mat_c[j * dim_c_n + i] <= mat_a[i * dim_a_n + j];
-                                end
+                            if (compute_idx < total_elements) begin
+                                i = compute_idx / dim_a_n;  // ???????
+                                j = compute_idx % dim_a_n;  // ???????
+                                // C[j][i] = A[i][j]
+                                mat_c[j * dim_c_n + i] <= mat_a[i * dim_a_n + j];
+                                compute_idx <= compute_idx + 1;
+                            end else begin
+                                write_idx <= 5'd0;
+                                state <= WRITE_RESULT;
                             end
-                            write_idx <= 5'd0;
-                            state <= WRITE_RESULT;
                         end
                         
-                        // ===== ??????? =====
+                        // ===== ???????????????????????????=====
                         OP_ADD: begin
-                            // C[i][j] = A[i][j] + B[i][j]
-                            for (idx = 0; idx < total_elements; idx = idx + 1) begin
-                                mat_c[idx] <= $signed(mat_a[idx]) + $signed(mat_b[idx]);
+                            if (compute_idx < total_elements) begin
+                                // C[i][j] = A[i][j] + B[i][j]
+                                mat_c[compute_idx] <= $signed(mat_a[compute_idx]) + $signed(mat_b[compute_idx]);
+                                compute_idx <= compute_idx + 1;
+                            end else begin
+                                write_idx <= 5'd0;
+                                state <= WRITE_RESULT;
                             end
-                            write_idx <= 5'd0;
-                            state <= WRITE_RESULT;
                         end
                         
-                        // ===== ?????????? =====
+                        // ===== ??????????????????????????????=====
                         OP_SCALAR: begin
-                            // C[i][j] = k * A[i][j]
-                            for (idx = 0; idx < total_elements; idx = idx + 1) begin
-                                mat_c[idx] <= scalar_k * $signed(mat_a[idx]);
+                            if (compute_idx < total_elements) begin
+                                // C[i][j] = k * A[i][j]
+                                mat_c[compute_idx] <= scalar_k * $signed(mat_a[compute_idx]);
+                                compute_idx <= compute_idx + 1;
+                            end else begin
+                                write_idx <= 5'd0;
+                                state <= WRITE_RESULT;
                             end
-                            write_idx <= 5'd0;
-                            state <= WRITE_RESULT;
                         end
                         
                         // ===== ?????????? =====
@@ -237,18 +234,11 @@ module mat_ops (
                             end
                         end
                         
-                        // ===== ???????? =====
+                        // ===== 卷积运算（已禁用）=====
                         OP_CONV: begin
-                            if (compute_idx < total_elements) begin
-                                i = compute_idx / dim_c_n;  // ?????
-                                j = compute_idx % dim_c_n;  // ?????
-                                
-                                mat_c[compute_idx] <= compute_conv_elem(i, j);
-                                compute_idx <= compute_idx + 1;
-                            end else begin
-                                write_idx <= 5'd0;
-                                state <= WRITE_RESULT;
-                            end
+                            // 卷积功能已禁用（节省资源）
+                            state <= ERROR;
+                            error_flag <= 1'b1;
                         end
                         
                         default: state <= ERROR;
@@ -314,25 +304,25 @@ module mat_ops (
     endfunction
     
     /**************************************************************************
-     * ????????????????????
-     * ???? C[out_row][out_col] = ??(A[...] * B[...])
+     * 卷积运算函数（已禁用以节省资源）
+     * 功能 C[out_row][out_col] = 求和(A[...] * B[...])
      **************************************************************************/
-    function signed [15:0] compute_conv_elem;
-        input [4:0] out_row;
-        input [4:0] out_col;
-        integer ki, kj;
-        reg signed [15:0] sum;
-        begin
-            sum = 16'sd0;
-            for (ki = 0; ki < dim_b_m; ki = ki + 1) begin
-                for (kj = 0; kj < dim_b_n; kj = kj + 1) begin
-                    sum = sum + $signed(mat_a[(out_row + ki) * dim_a_n + (out_col + kj)]) *
-                               $signed(mat_b[ki * dim_b_n + kj]);
-                end
-            end
-            compute_conv_elem = sum;
-        end
-    endfunction
+    // function signed [15:0] compute_conv_elem;
+    //     input [4:0] out_row;
+    //     input [4:0] out_col;
+    //     integer ki, kj;
+    //     reg signed [15:0] sum;
+    //     begin
+    //         sum = 16'sd0;
+    //         for (ki = 0; ki < dim_b_m; ki = ki + 1) begin
+    //             for (kj = 0; kj < dim_b_n; kj = kj + 1) begin
+    //                 sum = sum + $signed(mat_a[(out_row + ki) * dim_a_n + (out_col + kj)]) *
+    //                            $signed(mat_b[ki * dim_b_n + kj]);
+    //             end
+    //         end
+    //         compute_conv_elem = sum;
+    //     end
+    // endfunction
 
 endmodule
 
@@ -340,7 +330,7 @@ endmodule
  * ??????
  * 
  * ????
- *   matrix_a[0:24]  - ????A?????????????????洢??
+ *   matrix_a[0:24]  - ????A?????????????????????
  *   matrix_b[0:24]  - ????B????????
  *   dim_a_m/n       - ????A???
  *   dim_b_m/n       - ????B???

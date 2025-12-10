@@ -191,7 +191,7 @@ module ctrl_fsm (
 
             S_ERROR: begin  
                 if (countdown_val == 0 || key_back)  
-                    next_state = S_OP_OPERAND;  
+                    next_state = S_MENU;  // 修复：ERROR状态应该跳回主菜单，而不是S_OP_OPERAND
             end  
 
             default: next_state = S_IDLE;  

@@ -68,6 +68,7 @@ module display_formatter (
     reg [3:0] current_id;                   // 当前矩阵的ID
     reg [7:0] current_data;                 // 【新增】缓存当前元素
     reg waiting_data;                       // 【新增】等待新数据标志
+    reg signed [7:0] abs_data;              // 【新增】用于计算绝对值的临时变量
     
     /**************************************************************************
      * 函数：数字转ASCII
@@ -243,22 +244,48 @@ module display_formatter (
                     end
                     // 数据已缓存，按字符发送
                     else if (!tx_busy) begin
-                        // ===== 子状态0：发送十位数字 =====
+                        // ===== 支持有符号数显示（支持负数，支持-128到127）=====
+                        // 计算绝对值（在状态0时计算一次，后续状态复用）
                         if (char_idx == 0) begin
-                            if (current_data >= 10) begin
-                                tx_data <= digit_to_ascii(current_data / 10);
+                            if ($signed(current_data) < 0) begin
+                                abs_data <= -$signed(current_data);
+                            end else begin
+                                abs_data <= $signed(current_data);
+                            end
+                        end
+                        
+                        // 子状态0：发送负号（如果是负数）
+                        if (char_idx == 0) begin
+                            if ($signed(current_data) < 0) begin
+                                tx_data <= 8'd45;  // '-' 负号
                                 tx_valid <= 1'b1;
                             end
                             char_idx <= 5'd1;
                         end
-                        // ===== 子状态1：发送个位数字 =====
+                        // ===== 子状态1：发送百位数字（如果需要，支持-128到127）=====
                         else if (char_idx == 1) begin
-                            tx_data <= digit_to_ascii(current_data % 10);
-                            tx_valid <= 1'b1;
+                            if (abs_data >= 100) begin
+                                tx_data <= digit_to_ascii(abs_data / 100);
+                                tx_valid <= 1'b1;
+                            end
                             char_idx <= 5'd2;
                         end
-                        // ===== 子状态2：发送分隔符（空格或换行）=====
+                        // ===== 子状态2：发送十位数字（如果需要）=====
                         else if (char_idx == 2) begin
+                            if (abs_data >= 10) begin
+                                tx_data <= digit_to_ascii((abs_data / 10) % 10);
+                                tx_valid <= 1'b1;
+                            end
+                            char_idx <= 5'd3;
+                        end
+                        // ===== 子状态3：发送个位数字 =====
+                        else if (char_idx == 3) begin
+                            tx_data <= digit_to_ascii(abs_data % 10);
+                            tx_valid <= 1'b1;
+                            char_idx <= 5'd4;
+                        end
+                        // ===== 子状态4：发送分隔符（空格或换行）=====
+                        else if (char_idx == 4) begin
                             col_cnt <= col_cnt + 1;
                             elem_cnt <= elem_cnt + 1;
                             

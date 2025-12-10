@@ -3,12 +3,12 @@
  * ????????: ???????
  *          - ?????????????
  *          - ??????scalar_k ?? config_manager ???
- *          - ?????????? mat_ops ?????��????
+ *          - ?????????? mat_ops ???????????
  ******************************************************************************/
 module matrix_top (
     input clk,
     input rst_n,
-    input [7:0] sw,           // 8��??????
+    input [7:0] sw,           // 8????????
     input [4:0] key,          // 5??????
     input uart_rx,
 
@@ -19,7 +19,24 @@ module matrix_top (
 );
 
     // ==========================================================================
-    // ctrl_fsm ???
+    // 复位信号处理
+    // Ego1开发板的复位按键可能是高电平有效，如果J3一直闪烁，尝试反相复位
+    // ==========================================================================
+    // 方法1：如果复位按键是高电平有效（按下为高），取消注释以下两行：
+    // wire rst_n_internal;
+    // assign rst_n_internal = ~rst_n;
+    // 然后将所有模块的 rst_n 改为 rst_n_internal
+    
+    // 方法2：添加复位同步器（推荐，更可靠）
+    reg rst_n_sync1, rst_n_sync2;
+    always @(posedge clk) begin
+        rst_n_sync1 <= rst_n;
+        rst_n_sync2 <= rst_n_sync1;
+    end
+    wire rst_n_synced = rst_n_sync2;  // 同步后的复位信号
+    
+    // ==========================================================================
+    // ctrl_fsm 信号
     // ==========================================================================
     wire [1:0] mode_sel;
     wire [2:0] op_sel;
@@ -65,12 +82,12 @@ module matrix_top (
     wire config_done, config_error;
 
     // ==========================================================================
-    // storage �ź�
+    // storage ???
     // ==========================================================================
     wire [7:0] ms_data_in, ms_data_out;
     wire [3:0] matrix_id_out;
-    wire [8*25-1:0] matrix_a_flat;        // �������
-    wire [8*25-1:0] matrix_b_flat;        // �������
+    wire [8*25-1:0] matrix_a_flat;        // ???????
+    wire [8*25-1:0] matrix_b_flat;        // ???????
     wire [2:0] matrix_a_m, matrix_a_n, matrix_b_m, matrix_b_n;
     wire [3*10-1:0] list_m_flat;
     wire [3*10-1:0] list_n_flat;
@@ -83,12 +100,12 @@ module matrix_top (
     wire read_en;
 
     // ==========================================================================
-    // operand_selector �ź�
+    // operand_selector ???
     // ==========================================================================
     wire [3:0] selected_a, selected_b;
     
     // ==========================================================================
-    // display_formatter �ź�
+    // display_formatter ???
     // ==========================================================================
     wire [7:0] tx_data_fmt;
     wire tx_valid_fmt;
@@ -110,12 +127,11 @@ module matrix_top (
     wire op_done, busy_flag_ops, error_flag_ops;
     
     // ==========================================================================
-    // ?????��???
+    // ??????????
     // ==========================================================================
     assign ms_data_in = (start_gen) ? rand_data_out : elem_data;
-    assign write_en_parser = (start_input && data_ready);
     assign read_en = fmt_data_req;                     // ???????????????
-    assign matrix_data_to_fmt = ms_data_out;           // ???��??????????
+    assign matrix_data_to_fmt = ms_data_out;           // ???????????????
     
     // ==========================================================================
     // ??????????
@@ -130,7 +146,7 @@ module matrix_top (
     assign load_operands = start_op;
     
     // ==========================================================================
-    // ?��???????
+    // ??????????
     // ==========================================================================
     assign req_list_info = (display_mode == 2'd1);
     
@@ -139,7 +155,7 @@ module matrix_top (
     // ==========================================================================
     config_manager u_config_manager (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         
         // ========== ???????????? ==========
         .config_valid(config_valid),
@@ -174,8 +190,8 @@ module matrix_top (
     // ==========================================================================
     ctrl_fsm u_ctrl_fsm (
         .clk(clk),
-        .rst_n(rst_n),
-        .sw(sw[5:0]),                         // ????6��????/????/??????
+        .rst_n(rst_n_synced),
+        .sw(sw[5:0]),                         // ????6??????/????/??????
         .key(key[3:0]),
         .error_flag(error_flag_ctrl),
         .busy_flag(busy_flag_ctrl),
@@ -186,7 +202,7 @@ module matrix_top (
         .selected_b(selected_b),
         .format_done(format_done),
         
-        // ========== ???????��??? ==========
+        // ========== ???????????? ==========
         .countdown_init_cfg(countdown_init_cfg),
         
         .mode_sel(mode_sel),
@@ -210,7 +226,7 @@ module matrix_top (
     // ==========================================================================
     uart_rx u_uart_rx (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .rx(uart_rx),
         .rx_data(rx_data),
         .rx_valid(rx_valid)
@@ -221,7 +237,7 @@ module matrix_top (
     // ==========================================================================
     uart_cmd_parser u_uart_cmd_parser (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .rx_data(rx_data),
         .rx_valid(rx_valid),
         .mode_sel(mode_sel),
@@ -237,7 +253,7 @@ module matrix_top (
         .elem_max(),                          // ???????
         .count(count),
         .matrix_id(matrix_id_in),
-        .write_en(write_en_parser),
+        .write_en(write_en_parser),  // uart_cmd_parser ����� write_en
         .data_ready(data_ready),
         
         // ========== ???????????? ==========
@@ -253,17 +269,17 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? rand_matrix_gen?????????��?????
+    // ????? rand_matrix_gen????????????????
     // ==========================================================================
     rand_matrix_gen u_rand_matrix_gen (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .start_gen(start_gen),
         .dim_m(dim_m),
         .dim_n(dim_n),
         .count(count),
         
-        // ========== ???????��??? ==========
+        // ========== ???????????? ==========
         .elem_min_cfg(elem_min_cfg),
         .elem_max_cfg(elem_max_cfg),
         
@@ -273,19 +289,19 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? matrix_storage?????????��?????
+    // ????? matrix_storage????????????????
     // ==========================================================================
     matrix_storage u_matrix_storage (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         
-        // ========== ???��??????? ==========
+        // ========== ???????????? ==========
         .elem_min(elem_min_cfg),
         .elem_max(elem_max_cfg),
         .query_max_per_size(query_max_per_size),
         .max_per_size_in(max_per_size_out),
         
-        // ========== ��???? ==========
+        // ========== ?????? ==========
         .write_en(write_en_parser | rand_write_en),
         .read_en(read_en),
         .dim_m(dim_m),
@@ -293,7 +309,7 @@ module matrix_top (
         .data_in(ms_data_in),
         .matrix_id_in(matrix_id_in),
         
-        // ========== ???????�� ==========
+        // ========== ????????? ==========
         .result_data(result_data),
         .op_done(op_done),
         .result_m(result_m),
@@ -329,7 +345,7 @@ module matrix_top (
     // ==========================================================================
     operand_selector u_operand_selector (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .start_select(start_select),
         .manual_mode(manual_mode),
         .op_type(op_sel),
@@ -351,7 +367,7 @@ module matrix_top (
     // ==========================================================================
     display_formatter u_display_formatter (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .start_format(start_format),
         .display_mode(display_mode),
         .matrix_id(matrix_id_out),
@@ -375,7 +391,7 @@ module matrix_top (
     // ==========================================================================
     mat_ops u_mat_ops (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .start_op(start_op),
         .op_sel(op_sel),
         
@@ -406,7 +422,7 @@ module matrix_top (
     // ==========================================================================
     seg_display u_seg_display (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .mode_sel(mode_sel),
         .op_sel(op_sel),
         .countdown_val(countdown_val),
@@ -421,7 +437,7 @@ module matrix_top (
     // ==========================================================================
     led_status u_led_status (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .error_flag(error_flag_ctrl),
         .busy_flag(busy_flag_ctrl),
         .done_flag(done_flag_ctrl),
@@ -434,7 +450,7 @@ module matrix_top (
     // ==========================================================================
     uart_tx u_uart_tx (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(rst_n_synced),
         .tx_start(tx_valid_fmt),
         .tx_data(tx_data_fmt),
         .tx(uart_tx),
@@ -448,19 +464,19 @@ endmodule
  * 
  * 1. ?????????sw[7:0]????
  *    sw[5:0] ?? ctrl_fsm????/????/??????
- *    sw[7:6] ?? ??????��???????
+ *    sw[7:6] ?? ???????????????
  * 
  * 2. ????K?????
  *    - ??????3
  *    - ???UART?????????CONFIG SCALAR <value>
  *    - ????????CONFIG SCALAR -5
- *    - ??��??[-128, 127]
+ *    - ??????[-128, 127]
  * 
- * 3. ???��????????
+ * 3. ?????????????
  *    - mat_ops ???????????? matrix_a[0:24] ?? matrix_b[0:24]
  *    - ???????????? matrix_a[0]
  * 
- * 4. ???��????????
+ * 4. ?????????????
  *    - elem_min/elem_max ?? config_manager??UART?????
  *    - countdown_init ?? config_manager??UART?????
  *    - max_per_size ?? config_manager??UART?????
