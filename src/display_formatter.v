@@ -13,10 +13,10 @@ module display_formatter (
     input wire [7:0] matrix_data,           // 矩阵数据流
     input wire matrix_data_valid,           // 数据有效标志
     
-    // ========== 矩阵列表接口 ==========
-    input wire [2:0] list_m [0:9],          // 列表中各矩阵的行数
-    input wire [2:0] list_n [0:9],          // 列表中各矩阵的列数
-    input wire list_valid [0:9],            // 列表中各矩阵的有效标志
+    // ========== 矩阵列表接口（打包向量，便于综合）==========
+    input wire [3*10-1:0] list_m_flat,      // 10个3bit 行
+    input wire [3*10-1:0] list_n_flat,      // 10个3bit 列
+    input wire [10-1:0]   list_valid_flat,  // 10个有效位
     
     // ========== UART发送接口 ==========
     output reg [7:0] tx_data,               // 待发送的字符
@@ -50,6 +50,18 @@ module display_formatter (
     
     // ========== 列表处理变量 ==========
     reg [3:0] list_idx;                     // 当前处理的列表索引
+    wire [2:0] list_m [0:9];
+    wire [2:0] list_n [0:9];
+    wire       list_valid [0:9];
+    // 解包列表向量
+    genvar li;
+    generate
+        for (li = 0; li < 10; li = li + 1) begin : GEN_UNPACK_LIST
+            assign list_m[li]     = list_m_flat[li*3 +: 3];
+            assign list_n[li]     = list_n_flat[li*3 +: 3];
+            assign list_valid[li] = list_valid_flat[li];
+        end
+    endgenerate
     
     // ========== 缓存当前矩阵信息 ==========
     reg [2:0] current_m, current_n;         // 当前矩阵的维度

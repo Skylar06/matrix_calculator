@@ -12,10 +12,10 @@ module operand_selector (
     input wire [3:0] user_id_b,             // 用户输入的矩阵B的ID
     input wire user_input_valid,            // 用户输入有效标志
     
-    // ========== 矩阵存储信息（来自storage）==========
-    input wire [2:0] meta_m [0:9],          // 各矩阵的行数
-    input wire [2:0] meta_n [0:9],          // 各矩阵的列数
-    input wire meta_valid [0:9],            // 各矩阵的有效标志
+    // ========== 矩阵存储信息（打包向量，便于综合）==========
+    input wire [3*10-1:0] meta_m_flat,      // 10个矩阵行数
+    input wire [3*10-1:0] meta_n_flat,      // 10个矩阵列数
+    input wire [10-1:0]   meta_valid_flat,  // 10个有效标志
     
     // ========== 输出 ==========
     output reg [3:0] selected_a,            // 选中的矩阵A的ID
@@ -41,6 +41,20 @@ module operand_selector (
     
     reg [2:0] state;
     
+    // 解包列表信息到内部数组
+    wire [2:0] meta_m [0:9];
+    wire [2:0] meta_n [0:9];
+    wire       meta_valid [0:9];
+
+    genvar gi;
+    generate
+        for (gi = 0; gi < 10; gi = gi + 1) begin : GEN_UNPACK_META
+            assign meta_m[gi]     = meta_m_flat[gi*3 +: 3];
+            assign meta_n[gi]     = meta_n_flat[gi*3 +: 3];
+            assign meta_valid[gi] = meta_valid_flat[gi];
+        end
+    endgenerate
+
     // ========== LFSR随机数生成器 ==========
     // 16位线性反馈移位寄存器，生成伪随机序列
     reg [15:0] lfsr;
