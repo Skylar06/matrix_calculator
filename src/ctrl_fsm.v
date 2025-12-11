@@ -57,10 +57,10 @@ module ctrl_fsm (
     // ==========================================================================  
     // 按键和开关信号  
     // ==========================================================================  
-    wire key_ok = ~key[0];  
-    wire key_back = ~key[1];  
-    wire key_next = ~key[2];  
-    wire key_quick_menu = ~key[3];  
+    wire key_ok = key[0];  
+    wire key_back = key[1];  
+    wire key_next = key[2];  
+    wire key_quick_menu = key[3];  
     
     wire [1:0] mode_sel_sw = sw[1:0];  
     wire [2:0] op_sel_sw = sw[4:2];  

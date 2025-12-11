@@ -12,7 +12,7 @@ module matrix_top (
     input [4:0] key,          // 5个按键
     input uart_rx,
 
-    output uart_tx,1
+    output uart_tx,
     output [2:0] led,
     output [3:0] seg_sel,
     output [7:0] seg_data
@@ -30,7 +30,7 @@ module matrix_top (
     // 方法2：添加复位同步器（推荐，更可靠）
     reg rst_n_sync1, rst_n_sync2;
     always @(posedge clk) begin
-        rst_n_sync1 <= rst_n;
+        rst_n_sync1 <= ~rst_n;
         rst_n_sync2 <= rst_n_sync1;
     end
     wire rst_n_synced = rst_n_sync2;  // 同步后的复位信号
