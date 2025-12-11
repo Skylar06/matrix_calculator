@@ -12,7 +12,7 @@ module matrix_top (
     input [4:0] key,          // 5个按键
     input uart_rx,
 
-    output uart_tx,
+    output uart_tx,1
     output [2:0] led,
     output [3:0] seg_sel,
     output [7:0] seg_data

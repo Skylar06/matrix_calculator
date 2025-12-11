@@ -24,31 +24,31 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 # ==============================================================================
 # 8位拨码开关 (sw[7:0])
 # ==============================================================================
-set_property PACKAGE_PIN P4 [get_ports {sw[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]
 
-set_property PACKAGE_PIN A9 [get_ports {sw[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[1]}]
-
-set_property PACKAGE_PIN R1 [get_ports {sw[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[2]}]
-
-set_property PACKAGE_PIN N4 [get_ports {sw[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[3]}]
-
-set_property PACKAGE_PIN M4 [get_ports {sw[4]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[4]}]
-
-set_property PACKAGE_PIN R2 [get_ports {sw[5]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[5]}]
-
-# sw[6] 和 sw[7] 的引脚（代码中未使用，但端口定义为 [7:0] 需要分配）
-# 如果 Vivado 报错引脚冲突，请根据 Ego1 原理图修改为正确的引脚
-# 临时使用未使用的引脚（请根据实际硬件修改）
-set_property PACKAGE_PIN P3 [get_ports {sw[6]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[6]}]
-set_property PACKAGE_PIN P5 [get_ports {sw[7]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {sw[7]}]
+    set_property PACKAGE_PIN R1 [get_ports {sw[0]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[0]}]
+    
+    set_property PACKAGE_PIN N4 [get_ports {sw[1]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[1]}]
+    
+    set_property PACKAGE_PIN M4 [get_ports {sw[2]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[2]}]
+    
+    set_property PACKAGE_PIN R2 [get_ports {sw[3]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[3]}]
+    
+    set_property PACKAGE_PIN P2 [get_ports {sw[4]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[4]}]
+    
+    set_property PACKAGE_PIN P3 [get_ports {sw[5]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[5]}]
+    
+    set_property PACKAGE_PIN P4 [get_ports {sw[6]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[6]}]
+    
+    set_property PACKAGE_PIN P5 [get_ports {sw[7]}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {sw[7]}]
+    ```
 
 # ==============================================================================
 # 5位按键 (key[4:0])
