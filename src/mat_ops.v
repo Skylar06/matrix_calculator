@@ -43,9 +43,10 @@ module mat_ops (
     localparam IDLE         = 3'd0;
     localparam LOAD_DATA    = 3'd1;
     localparam COMPUTE      = 3'd2;
-    localparam WRITE_RESULT = 3'd3;
-    localparam DONE         = 3'd4;
-    localparam ERROR        = 3'd5;
+    localparam MUL_MAC      = 3'd3;   // 矩阵乘的逐乘累加子状态
+    localparam WRITE_RESULT = 3'd4;
+    localparam DONE         = 3'd5;
+    localparam ERROR        = 3'd6;
     
     reg [2:0] state;
     
@@ -70,6 +71,13 @@ module mat_ops (
     
     integer i, j, k;                        // 循环变量
     integer idx;
+
+    // ==========================================================================
+    // 矩阵乘法逐乘累加寄存器（避免长组合路径）
+    // ==========================================================================
+    reg signed [15:0] mul_sum;              // 累加和
+    reg [2:0]         mul_k;                // 当前乘积索引
+    reg [2:0]         mul_row, mul_col;     // 当前计算的行列
     
     /**************************************************************************
      * 主状态机
@@ -219,15 +227,15 @@ module mat_ops (
                             end
                         end
                         
-                        // ===== 矩阵乘 =====
+                        // ===== 矩阵乘（改为逐周期乘加，降低组合延迟）=====
                         OP_MULTIPLY: begin
                             if (compute_idx < total_elements) begin
-                                i = compute_idx / dim_c_n;  // 行
-                                j = compute_idx % dim_c_n;  // 列
-                                
-                                // 计算 C[i][j] = Σ(A[i][k] * B[k][j])
-                                mat_c[compute_idx] <= compute_multiply_elem(i, j);
-                                compute_idx <= compute_idx + 1;
+                                // 记录当前行列，进入乘加子状态
+                                mul_row <= compute_idx / dim_c_n;
+                                mul_col <= compute_idx % dim_c_n;
+                                mul_k   <= 3'd0;
+                                mul_sum <= 16'sd0;
+                                state   <= MUL_MAC;
                             end else begin
                                 write_idx <= 5'd0;
                                 state <= WRITE_RESULT;
@@ -245,7 +253,22 @@ module mat_ops (
                     endcase
                 end
                 
-                // ========== 状态3：输出结果流 ==========
+                // ========== 状态3：矩阵乘子循环（逐乘累加）==========
+                MUL_MAC: begin
+                    if (mul_k < dim_a_n) begin
+                        // 累加 A[row][k] * B[k][col]
+                        mul_sum <= mul_sum + $signed(mat_a[mul_row * dim_a_n + mul_k]) *
+                                             $signed(mat_b[mul_k * dim_b_n + mul_col]);
+                        mul_k <= mul_k + 1'b1;
+                    end else begin
+                        // 一个元素乘加完成，写入结果阵列
+                        mat_c[compute_idx] <= mul_sum;
+                        compute_idx <= compute_idx + 1'b1;
+                        state <= COMPUTE;
+                    end
+                end
+                
+                // ========== 状态4：输出结果流 ==========
                 WRITE_RESULT: begin
                     if (write_idx < total_elements) begin
                         // 饱和到 8bit 输出
@@ -264,14 +287,14 @@ module mat_ops (
                     end
                 end
                 
-                // ========== 状态4：完成 ==========
+                // ========== 状态5：完成 ==========
                 DONE: begin
                     op_done <= 1'b1;
                     busy_flag <= 1'b0;
                     state <= IDLE;
                 end
                 
-                // ========== 状态5：错误 ==========
+                // ========== 状态6：错误 ==========
                 ERROR: begin
                     error_flag <= 1'b1;
                     busy_flag <= 1'b0;

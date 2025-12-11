@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
 
-// È«Á´Â·Ã°ÑÌ£ºÖ±½ÓÇı¶¯¶¥²ã matrix_top µÄ¸ß²ã¿ØÖÆĞÅºÅ£¬¸²¸Ç´æ´¢¡úÑ¡Ôñ¡úÔËËã¡úÏÔÊ¾
-// ËµÃ÷£ºÎª¼ò»¯£¬²»¾­ UART£¬Ö±½ÓÀ­¸ß start_x µÈ¿ØÖÆ£¬ÑéÖ¤Êı¾İÍ¨Â·/ÎÕÊÖÓëÎŞ X¡£
+// å…¨å±€å†’çƒŸæµ‹è¯•ï¼šç›´æ¥é©±åŠ¨ matrix_top çš„é«˜å±‚æ§åˆ¶ä¿¡å·ï¼Œç»•è¿‡å­˜å‚¨/é€‰æ‹©/æ˜¾ç¤ºç»†èŠ‚
+// è¯´æ˜ï¼šä¸ºç®€åŒ–ï¼Œä¸èµ° UARTï¼Œè€Œæ˜¯ç›´æ¥ force å„ start_x ç­‰æ§åˆ¶ï¼ŒéªŒè¯åŸºæœ¬æ•°æ®é€šè·¯/è¿ç®—é“¾è·¯
 module tb_matrix_top_sanity;
-    // ¶¥²ã IO
+    // é¡¶å±‚ IO
     reg clk = 0;
     reg rst_n = 0;
     reg [7:0] sw;
@@ -29,31 +29,30 @@ module tb_matrix_top_sanity;
         .seg_data(seg_data)
     );
 
-    // ¼ò»¯£ºÖ±½Ó·ÃÎÊÄÚ²¿ĞÅºÅ£¨·Ç×ÛºÏÂ·¾¶£¬½ö·ÂÕæ£©
-    // Í¨¹ı hierarchical reference ·½Ê½Çı¶¯ parser/storage ĞÅºÅ¡£
-    // ×¢Òâ£ºVivado ·ÂÕæÔÊĞí²ã´ÎÒıÓÃ£¬×ÛºÏÊ±ÎŞÓ°Ïì¡£
-    // ²ã´ÎÃû°´ matrix_top ÖĞÀı»¯Ãû£º
-    // u_uart_cmd_parser, u_matrix_storage, u_mat_ops, u_ctrl_fsm, u_display_formatter
+    // ç®€åŒ–ï¼šç›´æ¥å¼ºåˆ¶å†…éƒ¨ä¿¡å·ï¼ˆä»…ä»¿çœŸï¼Œç»¼åˆæ— å½±å“ï¼‰
+    // é€šè¿‡å±‚æ¬¡å¼•ç”¨æ§åˆ¶ parser/storage ç­‰ä¿¡å·ã€‚
+    // æ³¨æ„ï¼šVivado ç»¼åˆä¼šå¿½ç•¥ force/releaseï¼Œä¸å½±å“ç»¼åˆã€‚
+    // æ¶‰åŠçš„å®ä¾‹ï¼šu_uart_cmd_parser, u_matrix_storage, u_mat_ops, u_ctrl_fsm, u_display_formatter
 
-    // ±ã½İ task£ºµÈ´ıÈô¸ÉÖÜÆÚ
+    // è¾…åŠ© taskï¼šç­‰å¾…è‹¥å¹²çº³ç§’
     task wait_ns(input integer ns);
     begin
         #(ns);
     end
     endtask
 
-    // Ğ´ÈëÒ»¸ö 2x2 ¾ØÕóµ½´æ´¢£¨Í¨¹ı²ã´ÎÒıÓÃÖ±½ÓÇı¶¯ÄÚ²¿ĞÅºÅ£©
+    // å†™å…¥ä¸€ä¸ª 2x2 çŸ©é˜µåˆ°å­˜å‚¨ï¼ˆé€šè¿‡å¼ºåˆ¶å†…éƒ¨ä¿¡å·ï¼‰
     task write_matrix(input [3:0] id, input [7:0] d0, d1, d2, d3);
     begin
-        // Éè¶¨³ß´ç£¨Í¨¹ı²ã´ÎÒıÓÃ£©
+        // è®¾å®šå°ºå¯¸ï¼ˆå¼ºåˆ¶è¦†ç›–ï¼‰
         force dut.u_uart_cmd_parser.dim_m = 3'd2;
         force dut.u_uart_cmd_parser.dim_n = 3'd2;
         force dut.u_uart_cmd_parser.matrix_id = id;
-        // Æô¶¯ start_input£¨Í¨¹ı²ã´ÎÒıÓÃ£©
+        // æ‹‰èµ· start_inputï¼ˆå¼ºåˆ¶è¦†ç›–ï¼‰
         force dut.u_ctrl_fsm.start_input = 1'b1; 
         wait_ns(10); 
         force dut.u_ctrl_fsm.start_input = 1'b0;
-        // Öğ¸öĞ´Èë£¨Í¨¹ı²ã´ÎÒıÓÃ£©
+        // é€å…ƒç´ å†™å…¥ï¼ˆå¼ºåˆ¶è¦†ç›–ï¼‰
         force dut.u_uart_cmd_parser.data_ready = 1'b1;
         force dut.u_matrix_storage.write_en = 1'b1;
         force dut.u_uart_cmd_parser.elem_data = d0; wait_ns(10);
@@ -62,7 +61,7 @@ module tb_matrix_top_sanity;
         force dut.u_uart_cmd_parser.elem_data = d3; wait_ns(10);
         force dut.u_matrix_storage.write_en = 1'b0;
         force dut.u_uart_cmd_parser.data_ready = 1'b0;
-        // ÊÍ·Å force
+        // é‡Šæ”¾ force
         release dut.u_uart_cmd_parser.dim_m;
         release dut.u_uart_cmd_parser.dim_n;
         release dut.u_uart_cmd_parser.matrix_id;
@@ -73,24 +72,24 @@ module tb_matrix_top_sanity;
     end
     endtask
 
-    // ´¥·¢ÔËËã
+    // è¿è¡Œä¸€æ¬¡åŠ æ³•
     task run_add(input [3:0] ida, input [3:0] idb);
     begin
-        // Ñ¡Ôñ A/B£¨Í¨¹ı²ã´ÎÒıÓÃ£©
+        // é€‰æ‹© A/Bï¼ˆå¼ºåˆ¶è¦†ç›–ï¼‰
         force dut.u_ctrl_fsm.mode_sel = 2'b11;
         force dut.u_ctrl_fsm.op_sel   = 3'b001; // add
         force dut.u_ctrl_fsm.operand_a_id = ida;
         force dut.u_ctrl_fsm.operand_b_id = idb;
-        // ´¥·¢Ñ¡ÔñÓëÔËËã
+        // å¯åŠ¨é€‰æ‹©è¿‡ç¨‹
         force dut.u_ctrl_fsm.start_select = 1'b1; wait_ns(10); 
         force dut.u_ctrl_fsm.start_select = 1'b0;
-        wait_ns(100); // µÈ´ıÑ¡ÔñÍê³É
+        wait_ns(100); // ï¿½È´ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½
         force dut.u_ctrl_fsm.start_op = 1'b1; wait_ns(10); 
         force dut.u_ctrl_fsm.start_op = 1'b0;
-        // µÈ´ıÍê³É
+        // ç­‰å¾…å®Œæˆ
         wait(dut.u_mat_ops.op_done);
         wait_ns(50);
-        // ÊÍ·Å force
+        // é‡Šæ”¾ force
         release dut.u_ctrl_fsm.mode_sel;
         release dut.u_ctrl_fsm.op_sel;
         release dut.u_ctrl_fsm.operand_a_id;
@@ -100,7 +99,7 @@ module tb_matrix_top_sanity;
     end
     endtask
 
-    // ´¥·¢ÏÔÊ¾½á¹û
+    // è§¦å‘æ˜¾ç¤ºç»“æœ
     task show_result;
     begin
         force dut.u_ctrl_fsm.start_disp = 1'b1; 
@@ -108,7 +107,7 @@ module tb_matrix_top_sanity;
         wait_ns(10);
         force dut.u_ctrl_fsm.start_disp = 1'b0; 
         force dut.u_ctrl_fsm.start_format = 1'b0;
-        // ÒÀÀµ display_formatter µÄ data_req ÎÕÊÖ
+        // è½®è¯¢ display_formatter çš„ data_req
         repeat (20) begin
             if (dut.u_display_formatter.data_req) begin
                 force dut.u_matrix_storage.read_en = 1'b1;
@@ -118,7 +117,7 @@ module tb_matrix_top_sanity;
             wait_ns(10);
         end
         force dut.u_matrix_storage.read_en = 1'b0;
-        // ÊÍ·Å force
+        // é‡Šæ”¾ force
         release dut.u_ctrl_fsm.start_disp;
         release dut.u_ctrl_fsm.start_format;
         release dut.u_matrix_storage.read_en;
@@ -129,18 +128,18 @@ module tb_matrix_top_sanity;
         $dumpfile("tb_matrix_top_sanity.vcd");
         $dumpvars(0, tb_matrix_top_sanity);
 
-        // ³õÖµ
+        // åˆå§‹å€¼
         sw = 0; key = 5'h1F; uart_rx = 1'b1;
         rst_n = 0; wait_ns(50); rst_n = 1; wait_ns(50);
 
-        // Ğ´Á½¾ØÕó£ºID0: [1 2;3 4], ID1: [10 20;30 40]
+        // å†™å…¥çŸ©é˜µ ID0: [1 2;3 4], ID1: [10 20;30 40]
         write_matrix(4'd0, 8'd1, 8'd2, 8'd3, 8'd4);
         write_matrix(4'd1, 8'd10, 8'd20, 8'd30, 8'd40);
 
-        // ÔËĞĞ¼Ó·¨
+        // è¿ç®—ï¼šåŠ æ³•
         run_add(4'd0, 4'd1);
 
-        // À­È¡½á¹ûÏÔÊ¾
+        // è¯»å–å¹¶æ˜¾ç¤º
         show_result;
 
         $display("Sanity done.");
