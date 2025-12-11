@@ -1,15 +1,15 @@
 /******************************************************************************
- * ???????: matrix_top
- * ????????: ???????
- *          - ?????????????
- *          - ??????scalar_k ?? config_manager ???
- *          - ?????????? mat_ops ???????????
+ * 模块名称: matrix_top
+ * 功能描述: 顶层封装
+ *          - 连接控制路径与数据路径
+ *          - 将scalar_k等配置从config_manager分发
+ *          - 将存储的矩阵馈入 mat_ops 运算
  ******************************************************************************/
 module matrix_top (
     input clk,
     input rst_n,
-    input [7:0] sw,           // 8????????
-    input [4:0] key,          // 5??????
+    input [7:0] sw,           // 8个拨码开关
+    input [4:0] key,          // 5个按键
     input uart_rx,
 
     output uart_tx,
@@ -48,13 +48,13 @@ module matrix_top (
     wire [1:0] display_mode;
     
     // ==========================================================================
-    // ????/??/?????
+    // 错误/忙/完成标志
     // ==========================================================================
     wire error_flag_ctrl, busy_flag_ctrl, done_flag_ctrl;
     wire select_done, select_error, format_done;
 
     // ==========================================================================
-    // UART RX / parser ???
+    // UART RX / parser 信号
     // ==========================================================================
     wire [7:0] rx_data;
     wire rx_valid;
@@ -64,30 +64,30 @@ module matrix_top (
     wire [3:0] user_id_a, user_id_b;
     wire data_ready, user_input_valid;
     
-    // CONFIG ??????
+    // CONFIG 配置接口
     wire config_valid;
     wire [2:0] config_type;
     wire signed [7:0] config_value1;
     wire signed [7:0] config_value2;
 
     // ==========================================================================
-    // config_manager ???
+    // config_manager 输出
     // ==========================================================================
     wire signed [7:0] elem_min_cfg;
     wire signed [7:0] elem_max_cfg;
     wire [7:0] countdown_init_cfg;
-    wire signed [7:0] scalar_k_cfg;        // ????????????????????K
+    wire signed [7:0] scalar_k_cfg;        // 由配置管理下发的标量K
     wire query_max_per_size;
     wire [3:0] max_per_size_out;
     wire config_done, config_error;
 
     // ==========================================================================
-    // storage ???
+    // storage 信号
     // ==========================================================================
     wire [7:0] ms_data_in, ms_data_out;
     wire [3:0] matrix_id_out;
-    wire [8*25-1:0] matrix_a_flat;        // ???????
-    wire [8*25-1:0] matrix_b_flat;        // ???????
+    wire [8*25-1:0] matrix_a_flat;        // 矩阵A打包
+    wire [8*25-1:0] matrix_b_flat;        // 矩阵B打包
     wire [2:0] matrix_a_m, matrix_a_n, matrix_b_m, matrix_b_n;
     wire [3*10-1:0] list_m_flat;
     wire [3*10-1:0] list_n_flat;
@@ -100,12 +100,12 @@ module matrix_top (
     wire read_en;
 
     // ==========================================================================
-    // operand_selector ???
+    // operand_selector 信号
     // ==========================================================================
     wire [3:0] selected_a, selected_b;
     
     // ==========================================================================
-    // display_formatter ???
+    // display_formatter 信号
     // ==========================================================================
     wire [7:0] tx_data_fmt;
     wire tx_valid_fmt;
@@ -115,69 +115,69 @@ module matrix_top (
     wire fmt_data_req;
     
     // ==========================================================================
-    // ????????????
+    // 随机矩阵生成
     // ==========================================================================
     wire [7:0] rand_data_out;
     wire rand_write_en;
     wire gen_done;
     
     // ==========================================================================
-    // ??????????
+    // 运算核心
     // ==========================================================================
     wire op_done, busy_flag_ops, error_flag_ops;
     
     // ==========================================================================
-    // ??????????
+    // 读写与显示连接
     // ==========================================================================
     assign ms_data_in = (start_gen) ? rand_data_out : elem_data;
-    assign read_en = fmt_data_req;                     // ???????????????
-    assign matrix_data_to_fmt = ms_data_out;           // ???????????????
+    assign read_en = fmt_data_req;                     // 显示格式化需要时触发读取
+    assign matrix_data_to_fmt = ms_data_out;           // 送往格式化器的当前矩阵元素
     
     // ==========================================================================
-    // ??????????
+    // 请求列表信息
     // ==========================================================================
     assign error_flag_ctrl = error_flag_ops | error_flag_storage | select_error | config_error;
     assign busy_flag_ctrl  = busy_flag_ops;
     assign done_flag_ctrl  = op_done | gen_done | config_done;
     
     // ==========================================================================
-    // ?????????????
+    // 运算请求
     // ==========================================================================
     assign load_operands = start_op;
     
     // ==========================================================================
-    // ??????????
+    // 列表请求信号
     // ==========================================================================
     assign req_list_info = (display_mode == 2'd1);
     
     // ==========================================================================
-    // ????????????? config_manager
+    // 实例化 config_manager
     // ==========================================================================
     config_manager u_config_manager (
         .clk(clk),
         .rst_n(rst_n_synced),
         
-        // ========== ???????????? ==========
+        // ========== 配置命令接口 ==========
         .config_valid(config_valid),
         .config_type(config_type),
         .config_value1(config_value1),
         .config_value2(config_value2),
         
-        // ========== ?????????????==========
+        // ========== 参数输出（广播）==========
         .elem_min(elem_min_cfg),
         .elem_max(elem_max_cfg),
         .countdown_init(countdown_init_cfg),
-        .scalar_k(scalar_k_cfg),              // ??????????????K
+        .scalar_k(scalar_k_cfg),              // 标量K
         
-        // ========== ?????? ==========
+        // ========== 查询接口 ==========
         .query_max_per_size(query_max_per_size),
         .max_per_size_out(max_per_size_out),
         
-        // ========== ????? ==========
+        // ========== 状态 ==========
         .config_done(config_done),
         .config_error(config_error),
         
-        // ========== ????????????==========
+        // ========== 回显（未用）==========
         .show_max_per_size(),
         .show_elem_min(),
         .show_elem_max(),
@@ -186,12 +186,12 @@ module matrix_top (
     );
     
     // ==========================================================================
-    // ????? ctrl_fsm
+    // 实例化 ctrl_fsm
     // ==========================================================================
     ctrl_fsm u_ctrl_fsm (
         .clk(clk),
         .rst_n(rst_n_synced),
-        .sw(sw[5:0]),                         // ????6??????/????/??????
+        .sw(sw[5:0]),                         // 使用低6位开关选择模式/运算/手动
         .key(key[3:0]),
         .error_flag(error_flag_ctrl),
         .busy_flag(busy_flag_ctrl),
@@ -202,7 +202,7 @@ module matrix_top (
         .selected_b(selected_b),
         .format_done(format_done),
         
-        // ========== ???????????? ==========
+        // ========== 配置输入 ==========
         .countdown_init_cfg(countdown_init_cfg),
         
         .mode_sel(mode_sel),
@@ -222,7 +222,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? uart_rx
+    // 实例化 uart_rx
     // ==========================================================================
     uart_rx u_uart_rx (
         .clk(clk),
@@ -233,7 +233,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? uart_cmd_parser???????CONFIG SCALAR??????
+    // 实例化 uart_cmd_parser，已支持 CONFIG SCALAR
     // ==========================================================================
     uart_cmd_parser u_uart_cmd_parser (
         .clk(clk),
@@ -245,23 +245,23 @@ module matrix_top (
         .start_gen(start_gen),
         .in_operand_select(start_select),
         
-        // ========== ????????/??????? ==========
+        // ========== 矩阵输入/生成 ==========
         .dim_m(dim_m),
         .dim_n(dim_n),
         .elem_data(elem_data),
-        .elem_min(),                          // ???????
-        .elem_max(),                          // ???????
+        .elem_min(),                          // （已由config_manager提供，未用）
+        .elem_max(),                          // （已由config_manager提供，未用）
         .count(count),
         .matrix_id(matrix_id_in),
-        .write_en(write_en_parser),  // uart_cmd_parser ����� write_en
+        .write_en(write_en_parser),           // 解析器输出写使能
         .data_ready(data_ready),
         
-        // ========== ???????????? ==========
+        // ========== 运算数选择 ==========
         .user_id_a(user_id_a),
         .user_id_b(user_id_b),
         .user_input_valid(user_input_valid),
         
-        // ========== CONFIG ??????? ==========
+        // ========== CONFIG 命令 ==========
         .config_valid(config_valid),
         .config_type(config_type),
         .config_value1(config_value1),
@@ -269,7 +269,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? rand_matrix_gen????????????????
+    // 实例化 rand_matrix_gen，生成随机矩阵
     // ==========================================================================
     rand_matrix_gen u_rand_matrix_gen (
         .clk(clk),
@@ -279,7 +279,7 @@ module matrix_top (
         .dim_n(dim_n),
         .count(count),
         
-        // ========== ???????????? ==========
+        // ========== 使用配置范围 ==========
         .elem_min_cfg(elem_min_cfg),
         .elem_max_cfg(elem_max_cfg),
         
@@ -289,19 +289,19 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? matrix_storage????????????????
+    // 实例化 matrix_storage，统一存储/读取矩阵
     // ==========================================================================
     matrix_storage u_matrix_storage (
         .clk(clk),
         .rst_n(rst_n_synced),
         
-        // ========== ???????????? ==========
+        // ========== 配置参数 ==========
         .elem_min(elem_min_cfg),
         .elem_max(elem_max_cfg),
         .query_max_per_size(query_max_per_size),
         .max_per_size_in(max_per_size_out),
         
-        // ========== ?????? ==========
+        // ========== 写读接口 ==========
         .write_en(write_en_parser | rand_write_en),
         .read_en(read_en),
         .dim_m(dim_m),
@@ -309,13 +309,13 @@ module matrix_top (
         .data_in(ms_data_in),
         .matrix_id_in(matrix_id_in),
         
-        // ========== ????????? ==========
+        // ========== 运算结果回写 ==========
         .result_data(result_data),
         .op_done(op_done),
         .result_m(result_m),
         .result_n(result_n),
         
-        // ========== ??????? ==========
+        // ========== 控制信号 ==========
         .start_input(start_input),
         .start_disp(start_disp),
         .load_operands(load_operands),
@@ -323,14 +323,14 @@ module matrix_top (
         .operand_b_id(operand_b_id),
         .req_list_info(req_list_info),
         
-        // ========== ?????? ==========
+        // ========== 输出到显示/格式化 ==========
         .data_out(ms_data_out),
         .matrix_id_out(matrix_id_out),
         .meta_info_valid(meta_info_valid),
         .matrix_data_valid(matrix_data_valid_fmt),
         .error_flag(error_flag_storage),
-        .matrix_a_flat(matrix_a_flat),       // ???????
-        .matrix_b_flat(matrix_b_flat),       // ???????
+        .matrix_a_flat(matrix_a_flat),       // 矩阵A扁平化
+        .matrix_b_flat(matrix_b_flat),       // 矩阵B扁平化
         .matrix_a_m(matrix_a_m),
         .matrix_a_n(matrix_a_n),
         .matrix_b_m(matrix_b_m),
@@ -341,7 +341,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? operand_selector
+    // 实例化 operand_selector
     // ==========================================================================
     operand_selector u_operand_selector (
         .clk(clk),
@@ -363,7 +363,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? display_formatter
+    // 实例化 display_formatter
     // ==========================================================================
     display_formatter u_display_formatter (
         .clk(clk),
@@ -387,7 +387,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? mat_ops
+    // 实例化 mat_ops
     // ==========================================================================
     mat_ops u_mat_ops (
         .clk(clk),
@@ -395,30 +395,30 @@ module matrix_top (
         .start_op(start_op),
         .op_sel(op_sel),
         
-        // ========== ????????????????????? ==========
-        .matrix_a_flat(matrix_a_flat),    // ? ????????????25??????
-        .matrix_b_flat(matrix_b_flat),    // ? ????????????25??????
+        // ========== 输入矩阵 ==========
+        .matrix_a_flat(matrix_a_flat),    // A矩阵，最多25个元素
+        .matrix_b_flat(matrix_b_flat),    // B矩阵，最多25个元素
         
-        // ========== ?????????????????? ==========
+        // ========== 矩阵维度 ==========
         .dim_a_m(matrix_a_m),
         .dim_a_n(matrix_a_n),
         .dim_b_m(matrix_b_m),
         .dim_b_n(matrix_b_n),
         
-        // ========== ????K???????? ==========
+        // ========== 标量K配置 ==========
         .scalar_k(scalar_k_cfg),
         
-        // ========== ??? ==========
+        // ========== 输出 ==========
         .op_done(op_done),
         .result_data(result_data),
-        .result_m(result_m),              // ?????????????????
-        .result_n(result_n),              // ?????????????????
+        .result_m(result_m),              // 结果维度m
+        .result_n(result_n),              // 结果维度n
         .busy_flag(busy_flag_ops),
         .error_flag(error_flag_ops)
     );
 
     // ==========================================================================
-    // ????? seg_display
+    // 实例化 seg_display
     // ==========================================================================
     seg_display u_seg_display (
         .clk(clk),
@@ -433,7 +433,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? led_status
+    // 实例化 led_status
     // ==========================================================================
     led_status u_led_status (
         .clk(clk),
@@ -446,7 +446,7 @@ module matrix_top (
     );
 
     // ==========================================================================
-    // ????? uart_tx
+    // 实例化 uart_tx
     // ==========================================================================
     uart_tx u_uart_tx (
         .clk(clk),
@@ -460,25 +460,25 @@ module matrix_top (
 endmodule
 
 /******************************************************************************
- * ??????????
+ * 使用说明
  * 
- * 1. ?????????sw[7:0]????
- *    sw[5:0] ?? ctrl_fsm????/????/??????
- *    sw[7:6] ?? ???????????????
+ * 1. 拨码开关 sw[7:0] 说明
+ *    sw[5:0] 交给 ctrl_fsm 选择模式/运算/手动
+ *    sw[7:6] 可保留或自定义扩展
  * 
- * 2. ????K?????
- *    - ??????3
- *    - ???UART?????????CONFIG SCALAR <value>
- *    - ????????CONFIG SCALAR -5
- *    - ??????[-128, 127]
+ * 2. 标量K配置
+ *    - 默认值 3
+ *    - 可通过 UART 命令 CONFIG SCALAR <value>
+ *    - 例如：CONFIG SCALAR -5
+ *    - 合法范围 [-128, 127]
  * 
- * 3. ?????????????
- *    - mat_ops ???????????? matrix_a[0:24] ?? matrix_b[0:24]
- *    - ???????????? matrix_a[0]
+ * 3. 矩阵数据流方向
+ *    - mat_ops 接收的 matrix_a[0:24] 与 matrix_b[0:24] 来自 storage
+ *    - 显示/格式化读取 matrix_a[0]
  * 
- * 4. ?????????????
- *    - elem_min/elem_max ?? config_manager??UART?????
- *    - countdown_init ?? config_manager??UART?????
- *    - max_per_size ?? config_manager??UART?????
- *    - scalar_k ?? config_manager??UART?????
+ * 4. 其他配置来源
+ *    - elem_min/elem_max 由 config_manager 通过 UART 配置
+ *    - countdown_init 由 config_manager 通过 UART 配置
+ *    - max_per_size 由 config_manager 通过 UART 配置
+ *    - scalar_k 由 config_manager 通过 UART 配置
  ******************************************************************************/
