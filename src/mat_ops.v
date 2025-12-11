@@ -66,6 +66,8 @@ module mat_ops (
     // 计数索引
     // ==========================================================================
     reg [4:0] compute_idx;                  // 计算用索引
+    reg [2:0] row_cnt;                      //行计数器
+    reg [2:0] col_cnt;                      //列计数器
     reg [4:0] write_idx;                    // 输出用索引
     reg [4:0] total_elements;               // 元素总数
     
@@ -183,6 +185,11 @@ module mat_ops (
                     end
                     
                     compute_idx <= 5'd0;
+
+                    // [新增]初始化行列计数器  
+                    row_cnt <= 3'd0;  
+                    col_cnt <= 3'd0;  
+
                     state <= COMPUTE;
                 end
                 
@@ -190,18 +197,26 @@ module mat_ops (
                 COMPUTE: begin
                     case (op_sel)
                         // ===== 转置 =====
-                        OP_TRANSPOSE: begin
-                            if (compute_idx < total_elements) begin
-                                i = compute_idx / dim_a_n;  // 行
-                                j = compute_idx % dim_a_n;  // 列
-                                // C[j][i] = A[i][j]
-                                mat_c[j * dim_c_n + i] <= mat_a[i * dim_a_n + j];
-                                compute_idx <= compute_idx + 1;
-                            end else begin
-                                write_idx <= 5'd0;
-                                state <= WRITE_RESULT;
-                            end
-                        end
+                        OP_TRANSPOSE: begin  
+                            if (compute_idx < total_elements) begin  
+                                // 原逻辑：i = compute_idx / dim_a_n; j = compute_idx % dim_a_n;  
+                                // 新逻辑：直接用计数器，无除法！  
+                                mat_c[col_cnt * dim_c_n + row_cnt] <= mat_a[row_cnt * dim_a_n + col_cnt];  
+                
+                                compute_idx <= compute_idx + 1;  
+                
+                            // [关键]手动更新行列计数器  
+                            if (col_cnt == dim_a_n - 1) begin  
+                                col_cnt <= 0;  
+                                row_cnt <= row_cnt + 1;  
+                            end else begin  
+                                col_cnt <= col_cnt + 1;  
+                            end    
+                        end else begin  
+                            write_idx <= 5'd0;  
+                            state <= WRITE_RESULT;  
+                        end  
+                    end  
                         
                         // ===== 加法 =====
                         OP_ADD: begin
@@ -228,19 +243,18 @@ module mat_ops (
                         end
                         
                         // ===== 矩阵乘（改为逐周期乘加，降低组合延迟）=====
-                        OP_MULTIPLY: begin
-                            if (compute_idx < total_elements) begin
-                                // 记录当前行列，进入乘加子状态
-                                mul_row <= compute_idx / dim_c_n;
-                                mul_col <= compute_idx % dim_c_n;
-                                mul_k   <= 3'd0;
-                                mul_sum <= 16'sd0;
-                                state   <= MUL_MAC;
-                            end else begin
-                                write_idx <= 5'd0;
-                                state <= WRITE_RESULT;
-                            end
+                        OP_MULTIPLY: begin  
+                            if (compute_idx < total_elements) begin  
+                            mul_row <= row_cnt;  
+                            mul_col <= col_cnt;  
+                            mul_k   <= 3'd0;  
+                            mul_sum <= 16'sd0;  
+                            state   <= MUL_MAC;  
+                        end else begin  
+                            write_idx <= 5'd0;  
+                            state <= WRITE_RESULT;  
                         end
+                    end  
                         
                         // ===== 卷积占位（未实现）=====
                         OP_CONV: begin
@@ -260,14 +274,23 @@ module mat_ops (
                         mul_sum <= mul_sum + $signed(mat_a[mul_row * dim_a_n + mul_k]) *
                                              $signed(mat_b[mul_k * dim_b_n + mul_col]);
                         mul_k <= mul_k + 1'b1;
-                    end else begin
-                        // 一个元素乘加完成，写入结果阵列
-                        mat_c[compute_idx] <= mul_sum;
-                        compute_idx <= compute_idx + 1'b1;
-                        state <= COMPUTE;
-                    end
-                end
-                
+                    end else begin  
+                        // 一个元素计算完成  
+                        mat_c[compute_idx] <= mul_sum;  
+        
+                        // [新增]更新主计数器和行列计数器（为下一个元素做准备）  
+                        compute_idx <= compute_idx + 1;  
+        
+                        // 这里的维度是用结果矩阵的列数 (dim_c_n)  
+                        if (col_cnt == dim_c_n - 1) begin  
+                            col_cnt <= 0;  
+                            row_cnt <= row_cnt + 1;  
+                        end else begin  
+                            col_cnt <= col_cnt + 1;  
+                        end  
+                        state <= COMPUTE;  
+                    end  
+                end  
                 // ========== 状态4：输出结果流 ==========
                 WRITE_RESULT: begin
                     if (write_idx < total_elements) begin
