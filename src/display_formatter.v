@@ -69,6 +69,7 @@ module display_formatter (
     reg [7:0] current_data;                 // 【新增】缓存当前元素
     reg waiting_data;                       // 【新增】等待新数据标志
     reg signed [7:0] abs_data;              // 【新增】用于计算绝对值的临时变量
+    reg [7:0] temp_val;
     
     /**************************************************************************
      * 函数：数字转ASCII
@@ -277,7 +278,7 @@ module display_formatter (
                         else if (char_idx == 2) begin
                             // 这里的逻辑稍微复杂，为了时序，我们先计算去掉百位后的余数
                             // 利用 reg 变量在 always 块内的特性
-                            reg [7:0] temp_val;
+                            
                             if (abs_data >= 200) temp_val = abs_data - 200;
                             else if (abs_data >= 100) temp_val = abs_data - 100;
                             else temp_val = abs_data;
