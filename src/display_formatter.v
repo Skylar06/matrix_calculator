@@ -272,16 +272,16 @@ module display_formatter (
                                 tx_data <= digit_to_ascii(4'd1);
                                 tx_valid <= 1'b1;
                             end
+
+                            //提前流水线计算temp_wal，把减法逻辑移到这个时钟周期，减轻下一个周期负担
+                            if (abs_data >= 200) temp_val <= abs_data - 200;
+                            else if (abs_data >= 100) temp_val <= abs_data - 100;
+                            else temp_val <= abs_data;    
+                            
                             char_idx <= 5'd2;
                         end
                         // ===== 子状态2：发送十位数字 (优化：无除法) =====
                         else if (char_idx == 2) begin
-                            // 这里的逻辑稍微复杂，为了时序，我们先计算去掉百位后的余数
-                            // 利用 reg 变量在 always 块内的特性
-                            
-                            if (abs_data >= 200) temp_val = abs_data - 200;
-                            else if (abs_data >= 100) temp_val = abs_data - 100;
-                            else temp_val = abs_data;
         
                             if (abs_data >= 10) begin // 只要原数>=10就要显示十位
                                 // 简单的查找表逻辑代替除法
