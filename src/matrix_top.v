@@ -464,3 +464,27 @@ module matrix_top (
     );
 
 endmodule
+
+/******************************************************************************
+ * 使用说明
+ * 
+ * 1. 拨码开关 sw[7:0] 说明
+ *    sw[5:0] 交给 ctrl_fsm 选择模式/运算/手动
+ *    sw[7:6] 可保留或自定义扩展
+ * 
+ * 2. 标量K配置
+ *    - 默认值 3
+ *    - 可通过 UART 命令 CONFIG SCALAR <value>
+ *    - 例如：CONFIG SCALAR -5
+ *    - 合法范围 [-128, 127]
+ * 
+ * 3. 矩阵数据流方向
+ *    - mat_ops 接收的 matrix_a[0:24] 与 matrix_b[0:24] 来自 storage
+ *    - 显示/格式化读取 matrix_a[0]
+ * 
+ * 4. 其他配置来源
+ *    - elem_min/elem_max 由 config_manager 通过 UART 配置
+ *    - countdown_init 由 config_manager 通过 UART 配置
+ *    - max_per_size 由 config_manager 通过 UART 配置
+ *    - scalar_k 由 config_manager 通过 UART 配置
+ ******************************************************************************/
