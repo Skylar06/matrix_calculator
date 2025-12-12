@@ -22,12 +22,12 @@ module matrix_top (
     // 0. 时钟降频 (关键救命稻草！)
     // ==========================================================================
     // 逻辑太复杂跑不到100MHz，我们降到50MHz，解决Timing Violation
-    reg clk_div;
+    (* KEEP = "TRUE" *) reg clk_div;
     always @(posedge clk) begin
         clk_div <= ~clk_div; // 100MHz -> 50MHz
     end
     
-    wire sys_clk;
+    (* KEEP = "TRUE" *) wire sys_clk;
     BUFG u_clk_bufg (
         .I(clk_div),
         .O(sys_clk)

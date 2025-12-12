@@ -1,5 +1,5 @@
 module uart_rx #(
-    parameter CLK_FREQ = 100_000_000,
+    parameter CLK_FREQ = 50_000_000,  // 修复：实际时钟是50MHz，不是100MHz
     parameter BAUD_RATE = 115200
 )(
     input wire clk,
