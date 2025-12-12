@@ -57,7 +57,7 @@ module matrix_storage (
     localparam MAX_MATRICES = 10;
     localparam MAX_ELEMENTS = 25;
 
-    reg [7:0] ram [0:MAX_MATRICES*MAX_ELEMENTS-1];
+    (* ram_style = "block" *) reg [7:0] ram [0:MAX_MATRICES*MAX_ELEMENTS-1];
     reg [2:0] meta_m [0:MAX_MATRICES-1];
     reg [2:0] meta_n [0:MAX_MATRICES-1];
     reg       meta_valid_internal [0:MAX_MATRICES-1];
@@ -208,9 +208,6 @@ module matrix_storage (
             for (i = 0; i < 25; i = i + 1) begin
                 matrix_a[i] <= 8'd0;
                 matrix_b[i] <= 8'd0;
-            end
-            for (i = 0; i < MAX_MATRICES*MAX_ELEMENTS; i = i + 1) begin
-                ram[i] <= 8'd0;
             end
 
             total_matrices   <= 4'd0;
