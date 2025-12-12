@@ -89,7 +89,7 @@ module rand_matrix_gen (
                         end
                         
                         // 映射到目标范围
-                        random_value = elem_min_cfg + (lfsr_signed % range);
+                        random_value = elem_min_cfg + (lfsr_signed & 8'h0F); //去掉取模
                         
                         // 边界保护
                         if (random_value > elem_max_cfg) begin

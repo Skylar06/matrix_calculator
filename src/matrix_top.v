@@ -33,7 +33,13 @@ module matrix_top (
         rst_n_sync1 <= ~rst_n;
         rst_n_sync2 <= rst_n_sync1;
     end
-    wire rst_n_synced = rst_n_sync2;  // 同步后的复位信号
+    
+    // [新增]使用 BUFG 增强驱动能力  
+    wire rst_n_synced;  
+    BUFG u_rst_bufg (  
+        .I(rst_n_sync2),  
+        .O(rst_n_synced)  
+    );  
     
     // ==========================================================================
     // ctrl_fsm 信号

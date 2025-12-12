@@ -262,22 +262,44 @@ module display_formatter (
                             end
                             char_idx <= 5'd1;
                         end
-                        // ===== 子状态1：发送百位数字（如果需要，支持-128到127）=====
+                        // ===== 子状态1：发送百位数字 (优化：无除法) =====
                         else if (char_idx == 1) begin
-                            if (abs_data >= 100) begin
-                                tx_data <= digit_to_ascii(abs_data / 100);
+                            if (abs_data >= 200) begin
+                                tx_data <= digit_to_ascii(4'd2);
+                                tx_valid <= 1'b1;
+                            end else if (abs_data >= 100) begin
+                                tx_data <= digit_to_ascii(4'd1);
                                 tx_valid <= 1'b1;
                             end
                             char_idx <= 5'd2;
                         end
-                        // ===== 子状态2：发送十位数字（如果需要）=====
+                        // ===== 子状态2：发送十位数字 (优化：无除法) =====
                         else if (char_idx == 2) begin
-                            if (abs_data >= 10) begin
-                                tx_data <= digit_to_ascii((abs_data / 10) % 10);
+                            // 这里的逻辑稍微复杂，为了时序，我们先计算去掉百位后的余数
+                            // 利用 reg 变量在 always 块内的特性
+                            reg [7:0] temp_val;
+                            if (abs_data >= 200) temp_val = abs_data - 200;
+                            else if (abs_data >= 100) temp_val = abs_data - 100;
+                            else temp_val = abs_data;
+        
+                            if (abs_data >= 10) begin // 只要原数>=10就要显示十位
+                                // 简单的查找表逻辑代替除法
+                                if (temp_val >= 90) tx_data <= digit_to_ascii(4'd9);
+                                else if (temp_val >= 80) tx_data <= digit_to_ascii(4'd8);
+                                else if (temp_val >= 70) tx_data <= digit_to_ascii(4'd7);
+                                else if (temp_val >= 60) tx_data <= digit_to_ascii(4'd6);
+                                else if (temp_val >= 50) tx_data <= digit_to_ascii(4'd5);
+                                else if (temp_val >= 40) tx_data <= digit_to_ascii(4'd4);
+                                else if (temp_val >= 30) tx_data <= digit_to_ascii(4'd3);
+                                else if (temp_val >= 20) tx_data <= digit_to_ascii(4'd2);
+                                else if (temp_val >= 10) tx_data <= digit_to_ascii(4'd1);
+                                else tx_data <= digit_to_ascii(4'd0);
+            
                                 tx_valid <= 1'b1;
                             end
                             char_idx <= 5'd3;
                         end
+
                         // ===== 子状态3：发送个位数字 =====
                         else if (char_idx == 3) begin
                             tx_data <= digit_to_ascii(abs_data % 10);
