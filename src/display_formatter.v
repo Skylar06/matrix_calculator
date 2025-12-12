@@ -68,7 +68,7 @@ module display_formatter (
     reg [3:0] current_id;                   // 当前矩阵的ID
     reg [7:0] current_data;                 // 【新增】缓存当前元素
     reg waiting_data;                       // 【新增】等待新数据标志
-    reg signed [7:0] abs_data;              // 【新增】用于计算绝对值的临时变量
+    reg signed [8:0] abs_data;              // 【新增】用于计算绝对值的临时变量
     reg [7:0] temp_val;
     
     /**************************************************************************
@@ -268,15 +268,14 @@ module display_formatter (
                             if (abs_data >= 200) begin
                                 tx_data <= digit_to_ascii(4'd2);
                                 tx_valid <= 1'b1;
+                                temp_val <= abs_data - 9'd200;
                             end else if (abs_data >= 100) begin
                                 tx_data <= digit_to_ascii(4'd1);
                                 tx_valid <= 1'b1;
-                            end
-
-                            //提前流水线计算temp_wal，把减法逻辑移到这个时钟周期，减轻下一个周期负担
-                            if (abs_data >= 200) temp_val <= abs_data - 200;
-                            else if (abs_data >= 100) temp_val <= abs_data - 100;
-                            else temp_val <= abs_data;    
+                                temp_val <= abs_data - 9'd100;
+                            end else begin
+                                temp_val <= abs_data;
+                            end  
                             
                             char_idx <= 5'd2;
                         end

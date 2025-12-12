@@ -1,7 +1,7 @@
 # ==============================================================================
 # 时钟约束
 # ==============================================================================
-# Ego1 板载时钟通常�? 100MHz (周期 10ns)
+# Ego1 板载时钟通常�? 100MHz (周期 10ns)
 set_property PACKAGE_PIN P17 [get_ports clk]
 set_property IOSTANDARD LVCMOS33 [get_ports clk]
 create_clock -period 10.000 -name clk [get_ports clk]
@@ -15,14 +15,14 @@ set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
 # ==============================================================================
 # UART 引脚
 # ==============================================================================
-set_property PACKAGE_PIN T4 [get_ports uart_rx]
+set_property PACKAGE_PIN N5 [get_ports uart_rx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_rx]
 
-set_property PACKAGE_PIN N5 [get_ports uart_tx]
+set_property PACKAGE_PIN T4 [get_ports uart_tx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 
 # ==============================================================================
-# 8位拨码开�? (sw[7:0])
+# 8位拨码开�? (sw[7:0])
 # ==============================================================================
 
     set_property PACKAGE_PIN R1 [get_ports {sw[0]}]
@@ -50,7 +50,7 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
     set_property IOSTANDARD LVCMOS33 [get_ports {sw[7]}]
 
 # ==============================================================================
-# 5位按�? (key[4:0])
+# 5位按�? (key[4:0])
 # ==============================================================================
 set_property PACKAGE_PIN V1 [get_ports {key[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}]
@@ -68,7 +68,7 @@ set_property PACKAGE_PIN R15 [get_ports {key[4]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}]
 
 # ==============================================================================
-# LED 状�?�灯 (led[2:0])
+# LED 状�?�灯 (led[2:0])
 # ==============================================================================
 set_property PACKAGE_PIN J3 [get_ports {led[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
@@ -80,7 +80,7 @@ set_property PACKAGE_PIN K2 [get_ports {led[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
 
 # ==============================================================================
-# 7段数码管 - 段�?�信�? (seg_data[7:0])
+# 7段数码管 - 段�?�信�? (seg_data[7:0])
 # ==============================================================================
 # seg_data[7:0] 对应 A, B, C, D, E, F, G, DP
 set_property PACKAGE_PIN B4 [get_ports {seg_data[0]}]  ; # A0 (CA0)
@@ -108,7 +108,7 @@ set_property PACKAGE_PIN D5 [get_ports {seg_data[7]}]  ; # DP0
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_data[7]}]
 
 # ==============================================================================
-# 7段数码管 - 位�?�信�? (seg_sel[3:0])
+# 7段数码管 - 位�?�信�? (seg_sel[3:0])
 # ==============================================================================
 # seg_sel[3:0] 对应 BIT1-BIT4 (DN0_K1-K4)
 set_property PACKAGE_PIN G2 [get_ports {seg_sel[0]}]   ; # BIT1 (DN0_K1)
