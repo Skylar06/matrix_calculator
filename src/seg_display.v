@@ -12,7 +12,7 @@ module seg_display (
 
     // ========== 动态扫描参数 ==========
     localparam SCAN_FREQ = 1000;        // 1kHz扫描频率
-    localparam CLK_FREQ = 100_000_000;  // 100MHz系统时钟
+    localparam CLK_FREQ = 50_000_000;  // 修复：实际时钟是50MHz
     localparam SCAN_DIV = CLK_FREQ / (SCAN_FREQ * 4); // 4个数码管
     
     reg [15:0] scan_cnt;                // 扫描分频计数器

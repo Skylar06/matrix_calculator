@@ -14,7 +14,7 @@ module led_status (
     localparam LED_DONE  = 2;   // led[2] - K2 - 完成指示
     
     // 闪烁控制参数
-    localparam CLK_FREQ = 100_000_000;  // 100MHz
+    localparam CLK_FREQ = 50_000_000;  // 修复：实际时钟是50MHz
     localparam BLINK_FREQ = 2;          // 2Hz闪烁频率(每秒闪2次)
     localparam BLINK_DIV = CLK_FREQ / (BLINK_FREQ * 2); // 除以2是因为要产生50%占空比
     

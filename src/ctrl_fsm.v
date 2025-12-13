@@ -70,7 +70,7 @@ module ctrl_fsm (
     // 倒计时控制  
     // ==========================================================================  
     reg [25:0] timer_cnt;  
-    localparam CLK_FREQ = 100_000_000;  
+    localparam CLK_FREQ = 50_000_000;  // 修复：实际时钟是50MHz  
     
     // ==========================================================================  
     // 状态寄存器更新  
@@ -101,10 +101,10 @@ module ctrl_fsm (
                     next_state = S_ERROR;  
                 else if (key_ok) begin  
                     case (mode_sel_sw)  
-                        2'b00: next_state = S_INPUT;  
-                        2'b01: next_state = S_GEN;  
-                        2'b10: next_state = S_DISPLAY;  
-                        2'b11: next_state = S_OP_SELECT;  
+                        2'b00: next_state = S_INPUT;   // sw[1:0]=00: INPUT模式
+                        2'b01: next_state = S_GEN;     // sw[1:0]=01: GEN模式
+                        2'b10: next_state = S_DISPLAY; // sw[1:0]=10: DISPLAY模式
+                        2'b11: next_state = S_OP_SELECT; // sw[1:0]=11: OPERATION模式
                         default: next_state = S_MENU;  
                     endcase  
                 end  

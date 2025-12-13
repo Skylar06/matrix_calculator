@@ -1,29 +1,29 @@
 # ==============================================================================
-# Ê±ÖÓÔ¼Êø
+# Ê±ï¿½ï¿½Ô¼ï¿½ï¿½
 # ==============================================================================
-# Ego1 °åÔØÊ±ÖÓÍ¨³£Îª 100MHz (ÖÜÆÚ 10ns)
+# Ego1 ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Í¨ï¿½ï¿½Îª 100MHz (ï¿½ï¿½ï¿½ï¿½ 10ns)
 set_property PACKAGE_PIN P17 [get_ports clk]
 set_property IOSTANDARD LVCMOS33 [get_ports clk]
 
-# Ô­Ê¼°åÔØÊ±ÖÓ 100MHz
+# Ô­Ê¼ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ 100MHz
 create_clock -period 10.000 -name clk [get_ports clk]
 
-# Éú³ÉÊ±ÖÓ£º¶¥²ãÄÚ½« clk ¶ş·ÖÆµµÃµ½ sys_clk£¨50MHz£©£¬ÓÃÓÚ´ó²¿·ÖÂß¼­
-# Ô¼ÊøÔÚ sys_clk ÍøÂçÉÏ£¨´úÂëÖĞÒÑÌí¼Ó KEEP ÊôĞÔÈ·±£²»±»ÓÅ»¯£©
-# Èç¹û×ÛºÏºóÕÒ²»µ½£¬¿ÉÒÔ³¢ÊÔ£ºget_nets -hierarchical -filter {NAME =~ "*sys_clk*"}
+# ï¿½ï¿½ï¿½ï¿½Ê±ï¿½Ó£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú½ï¿½ clk ï¿½ï¿½ï¿½ï¿½Æµï¿½Ãµï¿½ sys_clkï¿½ï¿½50MHzï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ó²¿·ï¿½ï¿½ß¼ï¿½
+# Ô¼ï¿½ï¿½ï¿½ï¿½ sys_clk ï¿½ï¿½ï¿½ï¿½ï¿½Ï£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ KEEP ï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½ï¿½ï¿½
+# ï¿½ï¿½ï¿½ï¿½ÛºÏºï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô³ï¿½ï¿½Ô£ï¿½get_nets -hierarchical -filter {NAME =~ "*sys_clk*"}
 create_generated_clock -name sys_clk \
     -source [get_ports clk] \
     -divide_by 2 \
     [get_nets sys_clk]
 
 # ==============================================================================
-# ¸´Î»ĞÅºÅ
+# ï¿½ï¿½Î»ï¿½Åºï¿½
 # ==============================================================================
 set_property PACKAGE_PIN P15 [get_ports rst_n]
 set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
 
 # ==============================================================================
-# UART Òı½Å
+# UART ï¿½ï¿½ï¿½ï¿½
 # ==============================================================================
 set_property PACKAGE_PIN N5 [get_ports uart_rx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_rx]
@@ -32,7 +32,7 @@ set_property PACKAGE_PIN T4 [get_ports uart_tx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 
 # ==============================================================================
-# 8Î»²¦Âë¿ª¹Ø (sw[7:0])
+# 8Î»ï¿½ï¿½ï¿½ë¿ªï¿½ï¿½ (sw[7:0])
 # ==============================================================================
 
     set_property PACKAGE_PIN R1 [get_ports {sw[0]}]
@@ -60,25 +60,25 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
     set_property IOSTANDARD LVCMOS33 [get_ports {sw[7]}]
 
 # ==============================================================================
-# 5Î»°´¼ü (key[4:0])
+# 5Î»ï¿½ï¿½ï¿½ï¿½ (key[4:0])
 # ==============================================================================
-set_property PACKAGE_PIN V1 [get_ports {key[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}]
+set_property PACKAGE_PIN R15 [get_ports {key[0]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}] //confirm
 
-set_property PACKAGE_PIN R17 [get_ports {key[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}]
+set_property PACKAGE_PIN J4 [get_ports {key[1]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}] //back
 
-set_property PACKAGE_PIN R11 [get_ports {key[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[2]}]
+set_property PACKAGE_PIN V1 [get_ports {key[2]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {key[2]}] //ä¸Šä¸€ä¸ª
 
-set_property PACKAGE_PIN U4 [get_ports {key[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[3]}]
+set_property PACKAGE_PIN R11 [get_ports {key[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {key[3]}] //ä¸‹ä¸€ä¸ª
 
-set_property PACKAGE_PIN R15 [get_ports {key[4]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}]
+set_property PACKAGE_PIN R17 [get_ports {key[4]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}] //è½¯å¤ä½/å¤‡ç”¨
 
 # ==============================================================================
-# LED ×´Ì¬Ö¸Ê¾µÆ (led[2:0])
+# LED ×´Ì¬Ö¸Ê¾ï¿½ï¿½ (led[2:0])
 # ==============================================================================
 set_property PACKAGE_PIN J3 [get_ports {led[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
@@ -90,9 +90,9 @@ set_property PACKAGE_PIN K2 [get_ports {led[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
 
 # ==============================================================================
-# 7¶ÎÊıÂë¹Ü - ¶ÎÑ¡ĞÅºÅ (seg_data[7:0])
+# 7ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ - ï¿½ï¿½Ñ¡ï¿½Åºï¿½ (seg_data[7:0])
 # ==============================================================================
-# seg_data[7:0] ¶ÔÓ¦ A, B, C, D, E, F, G, DP
+# seg_data[7:0] ï¿½ï¿½Ó¦ A, B, C, D, E, F, G, DP
 set_property PACKAGE_PIN B4 [get_ports {seg_data[0]}]  ; # A0 (CA0)
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_data[0]}]
 
@@ -118,9 +118,9 @@ set_property PACKAGE_PIN D5 [get_ports {seg_data[7]}]  ; # DP0
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_data[7]}]
 
 # ==============================================================================
-# 7¶ÎÊıÂë¹Ü - Î»Ñ¡ĞÅºÅ (seg_sel[3:0])
+# 7ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ - Î»Ñ¡ï¿½Åºï¿½ (seg_sel[3:0])
 # ==============================================================================
-# seg_sel[3:0] ¶ÔÓ¦ BIT1-BIT4 (DN0_K1-K4)
+# seg_sel[3:0] ï¿½ï¿½Ó¦ BIT1-BIT4 (DN0_K1-K4)
 set_property PACKAGE_PIN G2 [get_ports {seg_sel[0]}]   ; # BIT1 (DN0_K1)
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_sel[0]}]
 

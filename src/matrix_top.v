@@ -99,16 +99,17 @@ module matrix_top (
     endgenerate
 
     // ==========================================================================
-    // 3. 重新映射按键功能 (解决S3才是确认键的问题)
+    // 3. 重新映射按键功能 (修复：S3/V1是确认键)
     // ==========================================================================
-    // 我们在代码内部重新分配 key_pulse 到具体的逻辑信号
-    // 假设 key[0]=S0, key[1]=S1 ... 
+    // V1在约束文件中是key[0]
+    // 但用户说S3是确认键，所以key[0]应该映射为确认键（这个已经对了）
+    // 如果还是不对，可能需要调整映射顺序
     
-    wire btn_confirm = key_pulse[0];  // S0: 确认 / Start
-    wire btn_back    = key_pulse[1];  // S1: 返回 / Back
-    wire btn_next    = key_pulse[2];  // S2: 上一个 / A选择
-    wire btn_prev    = key_pulse[3];  // S3: 下一个 / B选择
-    wire btn_reset   = key_pulse[4];  // S4: 软复位 / 备用
+    wire btn_confirm = key_pulse[0];  // S2: 确认 / Start
+    wire btn_back    = key_pulse[1];  // S4: 返回 / Back
+    wire btn_next    = key_pulse[2];  // S3: 上一个 / A选择
+    wire btn_prev    = key_pulse[3];  // S0: 下一个 / B选择
+    wire btn_reset   = key_pulse[4];  // S1: 软复位 / 备用
     
     // 将重组后的按键打包送给 FSM
     // ctrl_fsm 内部逻辑: key[0]=Confirm, key[1]=Back, key[2]=SelA, key[3]=SelB

@@ -118,6 +118,7 @@ module matrix_storage (
 
     reg [1:0] slot_state;
     reg [3:0] same_size_count;
+    reg error_flag_clear;  // 修复：error_flag清除标志
 
     function [3:0] count_same_size;
         input [2:0] check_m;
@@ -225,6 +226,7 @@ module matrix_storage (
             meta_info_valid  <= 1'b0;
             matrix_data_valid<= 1'b0;
             error_flag       <= 1'b0;
+            error_flag_clear <= 1'b0;
 
             result_matrix_id <= 4'd0;
             result_elem_idx  <= 5'd0;
@@ -238,15 +240,25 @@ module matrix_storage (
         end else begin
             meta_info_valid   <= 1'b0;
             matrix_data_valid <= 1'b0;
-            error_flag        <= 1'b0;
+            // 修复：error_flag不应该每个周期都清除，应该保持直到被明确清除
+            // error_flag        <= 1'b0;  // 注释掉自动清除
 
             if (op_done) pending_result <= 1'b1;
+
+            // 修复：error_flag清除逻辑 - 只在新的start_input时清除之前的错误
+            // 但需要保持错误标志直到被明确清除或新的输入开始
+            if (start_input && !writing && slot_search_done) begin
+                error_flag_clear <= 1'b1;  // 标记可以清除错误
+            end else begin
+                error_flag_clear <= 1'b0;
+            end
 
             // write flow
             if (start_input && !writing && slot_search_done) begin
                 if (dim_m < 3'd1 || dim_m > 3'd5 || dim_n < 3'd1 || dim_n > 3'd5) begin
                     error_flag <= 1'b1;
                 end else begin
+                    if (error_flag_clear) error_flag <= 1'b0;  // 清除之前的错误
                     write_matrix_id  <= found_slot;
                     write_elem_idx   <= 5'd0;
                     write_elem_total <= dim_m * dim_n;
@@ -269,6 +281,8 @@ module matrix_storage (
                         meta_n[write_matrix_id] <= dim_n;
                         meta_valid_internal[write_matrix_id] <= 1'b1;
                         writing <= 1'b0;
+                        // 输入成功完成，清除错误标志
+                        error_flag <= 1'b0;
                     end
                 end
             end

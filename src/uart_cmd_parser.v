@@ -114,6 +114,9 @@ module uart_cmd_parser (
                     next_state = WAIT_ID_A;
                 else if (start_input || start_gen)
                     next_state = WAIT_M;
+                // 修复：如果已经在INPUT模式且收到数据，自动进入WAIT_M（处理start_input脉冲已过的情况）
+                else if (mode_sel == 2'b01 && rx_valid && rx_data >= ASCII_0 && rx_data <= ASCII_9)
+                    next_state = WAIT_M;
             end
             
             WAIT_M: begin
