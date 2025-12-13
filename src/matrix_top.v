@@ -153,8 +153,39 @@ module matrix_top (
     // 修复：记录matrix_storage写入时的matrix_id
     wire [3:0] write_matrix_id_out;
     
-    // 修复：GEN模式下，使用记录的gen_matrix_id；INPUT模式下，使用uart_cmd_parser的matrix_id
-    wire [3:0] matrix_id_in_sel = (mode_sel == 2'b10 && gen_matrix_id_valid) ? gen_matrix_id : matrix_id_in;
+    // 修复：GEN模式下，使用记录的gen_matrix_id；DISPLAY模式下，使用独立的matrix_id选择器；INPUT模式下，使用uart_cmd_parser的matrix_id
+    // DISPLAY模式需要一个独立的matrix_id选择器，通过key_next切换
+    reg [3:0] display_matrix_id_sel;  // DISPLAY模式选择的matrix_id
+    
+    // DISPLAY模式的matrix_id选择逻辑
+    reg [1:0] mode_sel_prev;  // 检测mode_sel变化
+    reg key_next_prev;  // 检测key_next上升沿
+    
+    always @(posedge sys_clk) begin
+        if (!rst_n_synced) begin
+            display_matrix_id_sel <= 4'd0;
+            mode_sel_prev <= 2'b00;
+            key_next_prev <= 1'b0;
+        end else begin
+            mode_sel_prev <= mode_sel;
+            key_next_prev <= fsm_keys[2];  // key_next
+            
+            // 当进入DISPLAY模式时，初始化为0
+            if (mode_sel == 2'b11 && mode_sel_prev != 2'b11) begin  // 进入DISPLAY模式
+                display_matrix_id_sel <= 4'd0;  // 默认显示matrix_id=0
+            end
+            // 当key_next按下时（上升沿），递增matrix_id（循环0-9）
+            else if (mode_sel == 2'b11 && fsm_keys[2] && !key_next_prev) begin  // DISPLAY模式且key_next上升沿
+                if (display_matrix_id_sel >= 4'd9)
+                    display_matrix_id_sel <= 4'd0;
+                else
+                    display_matrix_id_sel <= display_matrix_id_sel + 1;
+            end
+        end
+    end
+    
+    wire [3:0] matrix_id_in_sel = (mode_sel == 2'b10 && gen_matrix_id_valid) ? gen_matrix_id :  // GEN模式
+                                  (mode_sel == 2'b11) ? display_matrix_id_sel : matrix_id_in;  // DISPLAY模式使用选择的matrix_id
     wire [8*25-1:0] matrix_a_flat, matrix_b_flat;
     wire [2:0] matrix_a_m, matrix_a_n, matrix_b_m, matrix_b_n;
     wire [3*10-1:0] list_m_flat, list_n_flat;
@@ -180,7 +211,11 @@ module matrix_top (
     
     assign error_flag_ctrl = error_flag_ops | error_flag_storage | select_error | config_error;
     assign busy_flag_ctrl  = busy_flag_ops;
-    assign done_flag_ctrl  = op_done | gen_done | config_done;
+    // 修复：GEN模式的done_flag应该在数据写入完成后再设置
+    // gen_done可能在数据写入完成前就为真，所以需要检查gen_matrix_id_valid
+    // 如果gen_matrix_id_valid为真，说明write_matrix_id_out已经被记录，写入已完成
+    wire gen_done_safe = (mode_sel == 2'b10) ? (gen_done && gen_matrix_id_valid) : gen_done;
+    assign done_flag_ctrl  = op_done | gen_done_safe | config_done;
     assign load_operands = start_op;
     assign req_list_info = (display_mode == 2'd1);
 
@@ -297,7 +332,7 @@ module matrix_top (
     seg_display u_seg_display (
         .clk(sys_clk), .rst_n(rst_n_synced),
         .mode_sel(mode_sel), .op_sel(op_sel),
-        .countdown_val(countdown_val), .matrix_id_out(matrix_id_out),
+        .countdown_val(countdown_val), .matrix_id_out((mode_sel == 2'b11) ? display_matrix_id_sel : matrix_id_out),  // 修复：DISPLAY模式显示选择的matrix_id
         .seg_sel(seg_sel), .seg_data(seg_data)
     );
 
@@ -310,28 +345,24 @@ module matrix_top (
     // ==========================================================================
     // GEN模式matrix_id记录逻辑
     // ==========================================================================
-    reg gen_done_prev;
-    reg rand_write_en_prev;
+    reg [3:0] write_matrix_id_out_prev;
     always @(posedge sys_clk) begin
         if (!rst_n_synced) begin
             gen_matrix_id <= 4'd0;
             gen_matrix_id_valid <= 1'b0;
-            gen_done_prev <= 1'b0;
-            rand_write_en_prev <= 1'b0;
+            write_matrix_id_out_prev <= 4'd0;
         end else begin
-            gen_done_prev <= gen_done;
-            rand_write_en_prev <= rand_write_en;
+            write_matrix_id_out_prev <= write_matrix_id_out;
             
-            // 当GEN模式写入完成时（write_matrix_id_out更新），记录它
-            if (mode_sel == 2'b10 && write_matrix_id_out != 4'd0) begin
+            // 当GEN模式写入完成时（write_matrix_id_out从0变为非0），记录它
+            if (mode_sel == 2'b10) begin
                 // 检测write_matrix_id_out的变化（写入完成）
-                if (rand_write_en_prev && !rand_write_en) begin
+                if (write_matrix_id_out != 4'd0 && write_matrix_id_out_prev != write_matrix_id_out) begin
                     gen_matrix_id <= write_matrix_id_out;
                     gen_matrix_id_valid <= 1'b1;
                 end
-            end
-            // 当离开GEN模式时，清除标志
-            if (mode_sel != 2'b10) begin
+            end else begin
+                // 当离开GEN模式时，清除标志
                 gen_matrix_id_valid <= 1'b0;
             end
         end
