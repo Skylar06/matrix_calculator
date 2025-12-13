@@ -63,30 +63,30 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 # 5λ���� (key[4:0])
 # ==============================================================================
 set_property PACKAGE_PIN R15 [get_ports {key[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}] //confirm
+set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}] 
 
 set_property PACKAGE_PIN J4 [get_ports {key[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}] //back
+set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}]
 
 set_property PACKAGE_PIN V1 [get_ports {key[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[2]}] //上一个
+set_property IOSTANDARD LVCMOS18 [get_ports {key[2]}]
 
 set_property PACKAGE_PIN R11 [get_ports {key[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[3]}] //下一个
+set_property IOSTANDARD LVCMOS18 [get_ports {key[3]}] 
 
 set_property PACKAGE_PIN R17 [get_ports {key[4]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}] //软复位/备用
+set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}] 
 
 # ==============================================================================
 # LED ״ָ̬ʾ�� (led[2:0])
 # ==============================================================================
-set_property PACKAGE_PIN J3 [get_ports {led[0]}]
+set_property PACKAGE_PIN K2 [get_ports {led[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
 
 set_property PACKAGE_PIN J2 [get_ports {led[1]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[1]}]
 
-set_property PACKAGE_PIN K2 [get_ports {led[2]}]
+set_property PACKAGE_PIN J3 [get_ports {led[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
 
 # ==============================================================================
