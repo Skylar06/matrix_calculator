@@ -23,6 +23,7 @@ module matrix_storage (
 
     // control
     input  wire        start_input,
+    input  wire        start_gen,  // 修复：添加start_gen输入
     input  wire        start_disp,
     input  wire        read_en,
 
@@ -37,6 +38,7 @@ module matrix_storage (
     // read/display
     output reg  [7:0]  data_out,
     output reg  [3:0]  matrix_id_out,
+    output reg  [3:0]  write_matrix_id_out,  // 修复：输出写入时的matrix_id
     output reg         meta_info_valid,
     output reg         matrix_data_valid,
     output reg         error_flag,
@@ -153,13 +155,23 @@ module matrix_storage (
             case (slot_state)
                 SLOT_IDLE: begin
                     slot_search_done <= 1'b0;
-                    if ((start_input || op_done) && !writing && !storing_result) begin
-                        target_m <= (start_input) ? dim_m : result_m;
-                        target_n <= (start_input) ? dim_n : result_n;
+                    if ((start_input || start_gen || op_done) && !writing && !storing_result) begin
+                        // 修复：支持GEN模式的slot搜索
+                        if (start_gen) begin
+                            target_m <= dim_m;
+                            target_n <= dim_n;
+                            same_size_count <= count_same_size(dim_m, dim_n);
+                        end else if (start_input) begin
+                            target_m <= dim_m;
+                            target_n <= dim_n;
+                            same_size_count <= count_same_size(dim_m, dim_n);
+                        end else begin
+                            target_m <= result_m;
+                            target_n <= result_n;
+                            same_size_count <= count_same_size(result_m, result_n);
+                        end
                         slot_search_idx <= 4'd0;
                         query_max_per_size <= 1'b1;
-                        same_size_count <= count_same_size((start_input) ? dim_m : result_m,
-                                                           (start_input) ? dim_n : result_n);
                         slot_state <= SLOT_SEARCHING;
                     end
                 end
@@ -223,6 +235,7 @@ module matrix_storage (
             reading          <= 1'b0;
             data_out         <= 8'd0;
             matrix_id_out    <= 4'd0;
+            write_matrix_id_out <= 4'd0;  // 修复：复位write_matrix_id_out
             meta_info_valid  <= 1'b0;
             matrix_data_valid<= 1'b0;
             error_flag       <= 1'b0;
@@ -253,8 +266,8 @@ module matrix_storage (
                 error_flag_clear <= 1'b0;
             end
 
-            // write flow
-            if (start_input && !writing && slot_search_done) begin
+            // write flow (INPUT和GEN模式共用)
+            if ((start_input || start_gen) && !writing && slot_search_done) begin
                 if (dim_m < 3'd1 || dim_m > 3'd5 || dim_n < 3'd1 || dim_n > 3'd5) begin
                     error_flag <= 1'b1;
                 end else begin
@@ -280,6 +293,7 @@ module matrix_storage (
                         meta_m[write_matrix_id] <= dim_m;
                         meta_n[write_matrix_id] <= dim_n;
                         meta_valid_internal[write_matrix_id] <= 1'b1;
+                        write_matrix_id_out <= write_matrix_id;  // 修复：输出写入的matrix_id
                         writing <= 1'b0;
                         // 输入成功完成，清除错误标志
                         error_flag <= 1'b0;
@@ -297,6 +311,7 @@ module matrix_storage (
                     meta_m[write_matrix_id] <= dim_m;
                     meta_n[write_matrix_id] <= dim_n;
                     meta_valid_internal[write_matrix_id] <= 1'b1;
+                    write_matrix_id_out <= write_matrix_id;  // 修复：输出写入的matrix_id
                     writing <= 1'b0;
                 end
             end

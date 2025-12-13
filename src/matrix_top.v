@@ -145,6 +145,16 @@ module matrix_top (
     wire config_done, config_error;
     wire [7:0] ms_data_in, ms_data_out;
     wire [3:0] matrix_id_out;
+    
+    // 修复：GEN模式下，需要记录生成的matrix_id
+    reg [3:0] gen_matrix_id;
+    reg gen_matrix_id_valid;
+    
+    // 修复：记录matrix_storage写入时的matrix_id
+    wire [3:0] write_matrix_id_out;
+    
+    // 修复：GEN模式下，使用记录的gen_matrix_id；INPUT模式下，使用uart_cmd_parser的matrix_id
+    wire [3:0] matrix_id_in_sel = (mode_sel == 2'b10 && gen_matrix_id_valid) ? gen_matrix_id : matrix_id_in;
     wire [8*25-1:0] matrix_a_flat, matrix_b_flat;
     wire [2:0] matrix_a_m, matrix_a_n, matrix_b_m, matrix_b_n;
     wire [3*10-1:0] list_m_flat, list_n_flat;
@@ -236,14 +246,15 @@ module matrix_top (
         .query_max_per_size(query_max_per_size), .max_per_size_in(max_per_size_out),
         .write_en(write_en_parser | rand_write_en), .read_en(read_en),
         .dim_m(dim_m), .dim_n(dim_n),
-        .data_in(ms_data_in), .matrix_id_in(matrix_id_in),
+        .data_in(ms_data_in), .matrix_id_in(matrix_id_in_sel),  // 修复：使用matrix_id_in_sel
         .result_data(result_data), .op_done(op_done),
         .result_m(result_m), .result_n(result_n),
-        .start_input(start_input), .start_disp(start_disp),
+        .start_input(start_input), .start_gen(start_gen), .start_disp(start_disp),
         .load_operands(load_operands),
         .operand_a_id(operand_a_id), .operand_b_id(operand_b_id),
         .req_list_info(req_list_info),
         .data_out(ms_data_out), .matrix_id_out(matrix_id_out),
+        .write_matrix_id_out(write_matrix_id_out),  // 修复：连接write_matrix_id_out
         .meta_info_valid(meta_info_valid), .matrix_data_valid(matrix_data_valid_fmt),
         .error_flag(error_flag_storage),
         .matrix_a_flat(matrix_a_flat), .matrix_b_flat(matrix_b_flat),
@@ -296,6 +307,36 @@ module matrix_top (
         .led(led)
     );
 
+    // ==========================================================================
+    // GEN模式matrix_id记录逻辑
+    // ==========================================================================
+    reg gen_done_prev;
+    reg rand_write_en_prev;
+    always @(posedge sys_clk) begin
+        if (!rst_n_synced) begin
+            gen_matrix_id <= 4'd0;
+            gen_matrix_id_valid <= 1'b0;
+            gen_done_prev <= 1'b0;
+            rand_write_en_prev <= 1'b0;
+        end else begin
+            gen_done_prev <= gen_done;
+            rand_write_en_prev <= rand_write_en;
+            
+            // 当GEN模式写入完成时（write_matrix_id_out更新），记录它
+            if (mode_sel == 2'b10 && write_matrix_id_out != 4'd0) begin
+                // 检测write_matrix_id_out的变化（写入完成）
+                if (rand_write_en_prev && !rand_write_en) begin
+                    gen_matrix_id <= write_matrix_id_out;
+                    gen_matrix_id_valid <= 1'b1;
+                end
+            end
+            // 当离开GEN模式时，清除标志
+            if (mode_sel != 2'b10) begin
+                gen_matrix_id_valid <= 1'b0;
+            end
+        end
+    end
+    
     // ==========================================================================
     // UART回显测试模式（用于调试）
     // ==========================================================================
