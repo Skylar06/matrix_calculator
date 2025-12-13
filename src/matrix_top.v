@@ -296,9 +296,38 @@ module matrix_top (
         .led(led)
     );
 
+    // ==========================================================================
+    // UART回显测试模式（用于调试）
+    // ==========================================================================
+    // 当sw[7]=1时，启用回显模式：uart_rx接收到的数据直接通过uart_tx回显
+    wire echo_mode = sw_r2[7];
+    reg [7:0] echo_data;
+    reg echo_valid;
+    reg echo_busy;
+    
+    always @(posedge sys_clk) begin
+        if (!rst_n_synced) begin
+            echo_valid <= 1'b0;
+            echo_busy <= 1'b0;
+        end else begin
+            echo_valid <= 1'b0;
+            if (echo_mode && rx_valid && !echo_busy) begin
+                echo_data <= rx_data;
+                echo_valid <= 1'b1;
+                echo_busy <= 1'b1;
+            end else if (echo_busy && !tx_busy) begin
+                echo_busy <= 1'b0;
+            end
+        end
+    end
+    
+    // UART TX：回显模式优先，否则使用display_formatter的数据
+    wire [7:0] tx_data_sel = echo_mode ? echo_data : tx_data_fmt;
+    wire tx_valid_sel = echo_mode ? echo_valid : tx_valid_fmt;
+    
     uart_tx u_uart_tx (
         .clk(sys_clk), .rst_n(rst_n_synced),
-        .tx_start(tx_valid_fmt), .tx_data(tx_data_fmt),
+        .tx_start(tx_valid_sel), .tx_data(tx_data_sel),
         .tx(uart_tx), .tx_busy(tx_busy)
     );
 
