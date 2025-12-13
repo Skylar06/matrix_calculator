@@ -1,29 +1,29 @@
 # ==============================================================================
-# ʱ��Լ��
+# ??????
 # ==============================================================================
-# Ego1 ����ʱ��ͨ��Ϊ 100MHz (���� 10ns)
+# Ego1 ??????????? 100MHz (???? 10ns)
 set_property PACKAGE_PIN P17 [get_ports clk]
 set_property IOSTANDARD LVCMOS33 [get_ports clk]
 
-# ԭʼ����ʱ�� 100MHz
+# ????????? 100MHz
 create_clock -period 10.000 -name clk [get_ports clk]
 
-# ����ʱ�ӣ������ڽ� clk ����Ƶ�õ� sys_clk��50MHz�������ڴ󲿷��߼�
-# Լ���� sys_clk �����ϣ������������� KEEP ����ȷ�������Ż���
-# ����ۺϺ��Ҳ��������Գ��ԣ�get_nets -hierarchical -filter {NAME =~ "*sys_clk*"}
+# ??????????????? clk ???????? sys_clk??50MHz?????????????
+# ????? sys_clk ??????????????????? KEEP ????????????????
+# ??????????????????????get_nets -hierarchical -filter {NAME =~ "*sys_clk*"}
 create_generated_clock -name sys_clk \
     -source [get_ports clk] \
     -divide_by 2 \
     [get_nets sys_clk]
 
 # ==============================================================================
-# ��λ�ź�
+# ???????
 # ==============================================================================
 set_property PACKAGE_PIN P15 [get_ports rst_n]
 set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
 
 # ==============================================================================
-# UART ����
+# UART ????
 # ==============================================================================
 set_property PACKAGE_PIN N5 [get_ports uart_rx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_rx]
@@ -32,7 +32,7 @@ set_property PACKAGE_PIN T4 [get_ports uart_tx]
 set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
 
 # ==============================================================================
-# 8λ���뿪�� (sw[7:0])
+# 8???????? (sw[7:0])
 # ==============================================================================
 
     set_property PACKAGE_PIN R1 [get_ports {sw[0]}]
@@ -60,25 +60,25 @@ set_property IOSTANDARD LVCMOS33 [get_ports uart_tx]
     set_property IOSTANDARD LVCMOS33 [get_ports {sw[7]}]
 
 # ==============================================================================
-# 5λ���� (key[4:0])
+# 5?????? (key[4:0])
 # ==============================================================================
 set_property PACKAGE_PIN R15 [get_ports {key[0]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}] //confirm
+set_property IOSTANDARD LVCMOS33 [get_ports {key[0]}]
 
 set_property PACKAGE_PIN J4 [get_ports {key[1]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}] //back
+set_property IOSTANDARD LVCMOS33 [get_ports {key[1]}]
 
 set_property PACKAGE_PIN V1 [get_ports {key[2]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[2]}] //上一个
+set_property IOSTANDARD LVCMOS33 [get_ports {key[2]}]
 
 set_property PACKAGE_PIN R11 [get_ports {key[3]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[3]}] //下一个
+set_property IOSTANDARD LVCMOS33 [get_ports {key[3]}]
 
 set_property PACKAGE_PIN R17 [get_ports {key[4]}]
-set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}] //软复位/备用
+set_property IOSTANDARD LVCMOS33 [get_ports {key[4]}]
 
 # ==============================================================================
-# LED ״ָ̬ʾ�� (led[2:0])
+# LED ?????? (led[2:0])
 # ==============================================================================
 set_property PACKAGE_PIN J3 [get_ports {led[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[0]}]
@@ -90,9 +90,9 @@ set_property PACKAGE_PIN K2 [get_ports {led[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led[2]}]
 
 # ==============================================================================
-# 7������� - ��ѡ�ź� (seg_data[7:0])
+# 7??????? - ?????? (seg_data[7:0])
 # ==============================================================================
-# seg_data[7:0] ��Ӧ A, B, C, D, E, F, G, DP
+# seg_data[7:0] ??? A, B, C, D, E, F, G, DP
 set_property PACKAGE_PIN B4 [get_ports {seg_data[0]}]  ; # A0 (CA0)
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_data[0]}]
 
@@ -118,9 +118,9 @@ set_property PACKAGE_PIN D5 [get_ports {seg_data[7]}]  ; # DP0
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_data[7]}]
 
 # ==============================================================================
-# 7������� - λѡ�ź� (seg_sel[3:0])
+# 7??????? - ?????? (seg_sel[3:0])
 # ==============================================================================
-# seg_sel[3:0] ��Ӧ BIT1-BIT4 (DN0_K1-K4)
+# seg_sel[3:0] ??? BIT1-BIT4 (DN0_K1-K4)
 set_property PACKAGE_PIN G2 [get_ports {seg_sel[0]}]   ; # BIT1 (DN0_K1)
 set_property IOSTANDARD LVCMOS33 [get_ports {seg_sel[0]}]
 
